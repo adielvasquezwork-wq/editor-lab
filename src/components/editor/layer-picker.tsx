@@ -28,6 +28,7 @@ import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
 import {
+  EFFECT_PICKER_ORDER,
   getLayerCatalogEntry,
   isNewLayerType,
   getLayerLabel,
@@ -153,44 +154,7 @@ const SOURCE_ITEMS: readonly SourceItem[] = newFirst(SOURCE_ICONS.map(
   })
 ))
 
-const EFFECT_ORDER: readonly AddLayerAction[] = [
-  "photographic-cells",
-  "displaced-rings",
-  "annotations",
-  "outline",
-  "ascii",
-  "ink",
-  "pattern",
-  "crt",
-  "dithering",
-  "halftone",
-  "dot-grid",
-  "connected-dots",
-  "relief",
-  "particle-grid",
-  "pixelation",
-  "voxel",
-  "posterize",
-  "threshold",
-  "gradient-map",
-  "lumen-print",
-  "grain",
-  "photocopy",
-  "flares",
-  "focus-blur",
-  "glass",
-  "bloom",
-  "plotter",
-  "blob-tracking",
-  "circuit-bent",
-  "pixel-sorting",
-  "slice",
-  "signal-rot",
-  "erosion",
-  "edge-detect",
-  "displacement-map",
-  "chromatic-aberration",
-] as const
+const EFFECT_ORDER: readonly AddLayerAction[] = EFFECT_PICKER_ORDER
 
 const EFFECT_ITEMS: readonly EffectItem[] = newFirst(
   EFFECT_ORDER.map((value) => ({

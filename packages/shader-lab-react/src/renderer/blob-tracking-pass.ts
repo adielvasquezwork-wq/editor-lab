@@ -66,6 +66,21 @@ import { SlicePass } from "./slice-pass"
 import { SmearPass } from "./smear-pass"
 import { ThresholdPass } from "./threshold-pass"
 import { VoxelPass } from "./voxel-pass"
+import { AnnotationsPass } from "./annotations-pass"
+import { ConnectedDotsPass } from "./connected-dots-pass"
+import { DisplacedRingsPass } from "./displaced-rings-pass"
+import { ErosionPass } from "./erosion-pass"
+import { FlaresPass } from "./flares-pass"
+import { FocusBlurPass } from "./focus-blur-pass"
+import { GlassPass } from "./glass-pass"
+import { GradientMapPass } from "./gradient-map-pass"
+import { GrainPass } from "./grain-pass"
+import { LumenPrintPass } from "./lumen-print-pass"
+import { OutlinePass } from "./outline-pass"
+import { PhotocopyPass } from "./photocopy-pass"
+import { PhotographicCellsPass } from "./photographic-cells-pass"
+import { ReliefPass } from "./relief-pass"
+import { SignalRotPass } from "./signal-rot-pass"
 import type { LayerParameterValues } from "../types/editor"
 
 type Node = TSLNode
@@ -389,6 +404,36 @@ function createInnerEffectPass(
       return new ThresholdPass(layerId)
     case "voxel":
       return new VoxelPass(layerId)
+    case "annotations":
+      return new AnnotationsPass(layerId)
+    case "connected-dots":
+      return new ConnectedDotsPass(layerId)
+    case "displaced-rings":
+      return new DisplacedRingsPass(layerId)
+    case "erosion":
+      return new ErosionPass(layerId)
+    case "flares":
+      return new FlaresPass(layerId)
+    case "focus-blur":
+      return new FocusBlurPass(layerId)
+    case "glass":
+      return new GlassPass(layerId)
+    case "gradient-map":
+      return new GradientMapPass(layerId)
+    case "grain":
+      return new GrainPass(layerId)
+    case "lumen-print":
+      return new LumenPrintPass(layerId)
+    case "outline":
+      return new OutlinePass(layerId)
+    case "photocopy":
+      return new PhotocopyPass(layerId)
+    case "photographic-cells":
+      return new PhotographicCellsPass(layerId)
+    case "relief":
+      return new ReliefPass(layerId)
+    case "signal-rot":
+      return new SignalRotPass(layerId)
     default:
       return null
   }
@@ -535,7 +580,7 @@ export class BlobTrackingPass extends PassNode {
   private readonly trailStrengthUniform: Node = uniform(0)
 
   private innerEffectType: ShaderLabBlobInnerEffect = INNER_EFFECT_NONE
-  private innerEffectParamsRaw = ""
+  private innerEffectParamsRaw: string | null = null
   private childPass: PassNode | null = null
   private innerRt: THREE.WebGLRenderTarget | null = null
   private readonly innerPlaceholder = createPipelinePlaceholder()
@@ -2063,7 +2108,7 @@ export class BlobTrackingPass extends PassNode {
       }
 
       this.innerActiveUniform.value = this.childPass ? 1 : 0
-      this.innerEffectParamsRaw = ""
+      this.innerEffectParamsRaw = null
       this.rebuildEffectNode()
     }
 

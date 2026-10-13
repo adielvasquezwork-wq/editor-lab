@@ -1,4 +1,8 @@
 import {
+  EFFECT_PICKER_ORDER,
+  getLayerLabel,
+} from "@/lib/editor/config/layer-catalog"
+import {
   CUSTOM_SHADER_ENTRY_EXPORT,
   CUSTOM_SHADER_INTERNAL_VISIBILITY,
   CUSTOM_SHADER_STARTER,
@@ -74,7 +78,6 @@ import type {
   ParameterDefinitions,
   SourceLayerType,
 } from "@/types/editor"
-import { EFFECT_LAYER_TYPES } from "@/types/editor"
 
 const mediaPlacementParams = [
   {
@@ -7052,19 +7055,12 @@ const BLOB_TRACKING_INTERNAL_VISIBILITY = {
   key: "__blobTrackingInternal",
 } as const
 
-function formatEffectLabel(type: string): string {
-  return type
-    .split("-")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ")
-}
-
 const blobInnerEffectOptions = [
   { label: "None", value: "none" },
-  ...EFFECT_LAYER_TYPES.filter(
-    (type) => type !== "blur" && type !== "blob-tracking"
-  ).map((type) => ({ label: formatEffectLabel(type), value: type })),
-] as const
+  ...EFFECT_PICKER_ORDER.filter((type) => type !== "blob-tracking").map(
+    (type) => ({ label: getLayerLabel(type), value: type })
+  ),
+]
 
 const ANNOTATIONS_INTERNAL_VISIBILITY = {
   equals: "__never__",
