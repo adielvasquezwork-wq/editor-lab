@@ -47,6 +47,24 @@ export function layoutGridTracks(
   })
 }
 
+export function layoutGridSnapLines(
+  grid: LayoutGrid,
+  document: { width: number; height: number }
+): { x: number[]; y: number[] } {
+  const axis = (count: number, length: number) => {
+    const lines = new Set<number>([0, length / 2, length])
+    for (const [start, end] of layoutGridTracks(count, grid.gap, grid.margin, length)) {
+      lines.add(start)
+      lines.add(end)
+    }
+    return [...lines].sort((a, b) => a - b)
+  }
+  return {
+    x: axis(grid.columns, document.width),
+    y: axis(grid.rows, document.height),
+  }
+}
+
 export function updateLayoutGrid(updates: Partial<LayoutGrid>): void {
   const state = useEditorStore.getState()
   const current = resolveLayoutGrid(state.sceneConfig)

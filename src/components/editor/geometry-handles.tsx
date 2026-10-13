@@ -6,7 +6,8 @@ import {
   useRef,
   useState,
 } from "react"
-import { getCompositionFrame } from "@/lib/editor/composition"
+import { getCompositionFrame, getDocumentSize } from "@/lib/editor/composition"
+import { layoutGridSnapLines, resolveLayoutGrid } from "@/lib/editor/layout-grid"
 import { useEditorStore } from "@/store/editor-store"
 
 export type Geometry = {
@@ -16,6 +17,25 @@ export type Geometry = {
 }
 export type GeometryOutline = "ellipse" | "rectangle" | "radial" | "linear" | "none"
 type Handle = "center" | "x" | "y" | "start" | "end"
+type SnapGuides = { x: number | null; y: number | null }
+
+const SNAP_DISTANCE_PX = 8
+
+function nearestLine(
+  values: readonly number[],
+  lines: readonly number[],
+  threshold: number
+): { delta: number; line: number } | null {
+  let best: { delta: number; line: number } | null = null
+  for (const value of values) {
+    for (const line of lines) {
+      const delta = line - value
+      if (Math.abs(delta) <= threshold && (!best || Math.abs(delta) < Math.abs(best.delta)))
+        best = { delta, line }
+    }
+  }
+  return best
+}
 type Drag = {
   pointer: number
   handle: Handle
@@ -63,8 +83,20 @@ export function GeometryHandles({
     return () => observer.disconnect()
   }, [])
   const sceneConfig = useEditorStore((state) => state.sceneConfig)
+  const outputSize = useEditorStore((state) => state.outputSize)
+  const [guides, setGuides] = useState<SnapGuides>({ x: null, y: null })
   const space = framed ? getCompositionFrame(sceneConfig, box) : box
   const shorter = Math.max(1, Math.min(space.width, space.height))
+  const grid = resolveLayoutGrid(sceneConfig)
+  const snapLines = (() => {
+    if (!grid.visible) return null
+    const document = getDocumentSize(sceneConfig, outputSize) ?? box
+    const lines = layoutGridSnapLines(grid, document)
+    return {
+      x: lines.x.map((x) => ((x * box.width) / document.width - box.width / 2) / shorter),
+      y: lines.y.map((y) => ((y * box.height) / document.height - box.height / 2) / shorter),
+    }
+  })()
   const toPx = (x: number, y: number): [number, number] => [
     x * shorter + box.width / 2,
     y * shorter + box.height / 2,
@@ -91,6 +123,7 @@ export function GeometryHandles({
     const active = drag.current
     if (!active) return
     drag.current = null
+    setGuides({ x: null, y: null })
     if (!commit) callbacks.current.restore(active.original)
     useEditorStore.getState().endInteractiveEdit()
   }, [])
@@ -130,6 +163,42 @@ export function GeometryHandles({
     event.stopPropagation()
     const point = fromEvent(event)
     const current = callbacks.current.read()
+    const rect = host.current?.getBoundingClientRect()
+    const threshold =
+      SNAP_DISTANCE_PX / Math.max(1e-6, shorter * ((rect?.width ?? box.width) / box.width))
+    const lines = event.metaKey || event.ctrlKey ? null : snapLines
+    const nextGuides: SnapGuides = { x: null, y: null }
+    if (lines && active.handle === "center") {
+      const a = (current.rotation * Math.PI) / 180
+      const hw = current.size[0] / 2
+      const hh = current.size[1] / 2
+      const extentX = Math.abs(Math.cos(a)) * hw + Math.abs(Math.sin(a)) * hh
+      const extentY = Math.abs(Math.sin(a)) * hw + Math.abs(Math.cos(a)) * hh
+      const nx = point[0] - active.offset[0]
+      const ny = point[1] - active.offset[1]
+      const snapX = nearestLine([nx - extentX, nx, nx + extentX], lines.x, threshold)
+      const snapY = nearestLine([ny - extentY, ny, ny + extentY], lines.y, threshold)
+      if (snapX) {
+        point[0] += snapX.delta
+        nextGuides.x = snapX.line
+      }
+      if (snapY) {
+        point[1] += snapY.delta
+        nextGuides.y = snapY.line
+      }
+    } else if (lines) {
+      const snapX = nearestLine([point[0]], lines.x, threshold)
+      const snapY = nearestLine([point[1]], lines.y, threshold)
+      if (snapX) {
+        point[0] += snapX.delta
+        nextGuides.x = snapX.line
+      }
+      if (snapY) {
+        point[1] += snapY.delta
+        nextGuides.y = snapY.line
+      }
+    }
+    if (nextGuides.x !== guides.x || nextGuides.y !== guides.y) setGuides(nextGuides)
     const [ccx, ccy] = current.center
     const dx = point[0] - ccx
     const dy = point[1] - ccy
@@ -216,6 +285,26 @@ export function GeometryHandles({
         role="application"
         style={{ filter: "drop-shadow(0 0 1px rgba(0,0,0,0.9))" }}
       >
+        {guides.x !== null ? (
+          <line
+            data-snap-guide="x"
+            stroke="var(--ds-color-accent)"
+            x1={toPx(guides.x, 0)[0]}
+            x2={toPx(guides.x, 0)[0]}
+            y1={0}
+            y2={box.height}
+          />
+        ) : null}
+        {guides.y !== null ? (
+          <line
+            data-snap-guide="y"
+            stroke="var(--ds-color-accent)"
+            x1={0}
+            x2={box.width}
+            y1={toPx(0, guides.y)[1]}
+            y2={toPx(0, guides.y)[1]}
+          />
+        ) : null}
         {isLinear ? (
           <>
             <line x1={sx} y1={sy} x2={ex} y2={ey} stroke={stroke} />
