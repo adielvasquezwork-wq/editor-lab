@@ -88,6 +88,8 @@ export class TextPass extends PassNode {
   private readonly placeholder: THREE.Texture
   private textureNode: Node
   private textTexture: THREE.CanvasTexture | null = null
+  private textTextureWidth = 0
+  private textTextureHeight = 0
   private canvas: HTMLCanvasElement | null = null
   private width = 1
   private height = 1
@@ -378,8 +380,19 @@ export class TextPass extends PassNode {
       pivotY: anchorY - offsetY,
     })
 
+    if (
+      this.textTexture &&
+      (this.textTextureWidth !== canvas.width ||
+        this.textTextureHeight !== canvas.height)
+    ) {
+      this.textTexture.dispose()
+      this.textTexture = null
+    }
+
     if (!this.textTexture) {
       this.textTexture = new THREE.CanvasTexture(canvas)
+      this.textTextureWidth = canvas.width
+      this.textTextureHeight = canvas.height
       this.textTexture.flipY = false
       this.textTexture.generateMipmaps = false
       this.textTexture.magFilter = THREE.LinearFilter
