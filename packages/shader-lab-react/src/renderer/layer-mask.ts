@@ -3,7 +3,6 @@ import {
   clamp,
   float,
   Fn,
-  If,
   length,
   max,
   min,
@@ -124,11 +123,94 @@ export function layerMaskSignature(
 
 export type LayerMaskRole = "source" | "effect" | "transform"
 
-const BRUSH_FEATHER_RINGS = [
-  [0.35, 6, 0.9],
-  [0.7, 10, 0.6],
-  [1, 14, 0.3],
-] as const
+const ELLIPSE_DISTANCE_ITERATIONS = 3
+const FAR_DISTANCE = 1e20
+const MAX_BRUSH_DISTANCE = 60000
+
+function distanceTransform1d(
+  f: Float64Array,
+  count: number,
+  spacing: number,
+  out: Float64Array,
+  hull: Int32Array,
+  bounds: Float64Array
+) {
+  const intersect = (q: number, p: number) =>
+    (f[q]! + (q * spacing) ** 2 - (f[p]! + (p * spacing) ** 2)) /
+    (2 * spacing * (q - p))
+  let k = 0
+  hull[0] = 0
+  bounds[0] = Number.NEGATIVE_INFINITY
+  bounds[1] = Number.POSITIVE_INFINITY
+  for (let q = 1; q < count; q += 1) {
+    let s = intersect(q, hull[k]!)
+    while (s <= bounds[k]!) {
+      k -= 1
+      s = intersect(q, hull[k]!)
+    }
+    k += 1
+    hull[k] = q
+    bounds[k] = s
+    bounds[k + 1] = Number.POSITIVE_INFINITY
+  }
+  k = 0
+  for (let q = 0; q < count; q += 1) {
+    while (bounds[k + 1]! < q * spacing) k += 1
+    const p = hull[k]!
+    out[q] = ((q - p) * spacing) ** 2 + f[p]!
+  }
+}
+
+function squaredDistanceTo(
+  seeds: Uint8Array,
+  seedValue: boolean,
+  size: number,
+  spacingX: number,
+  spacingY: number
+): Float64Array {
+  const grid = new Float64Array(size * size)
+  for (let index = 0; index < grid.length; index += 1) {
+    grid[index] = (seeds[index] !== 0) === seedValue ? 0 : FAR_DISTANCE
+  }
+  const line = new Float64Array(size)
+  const out = new Float64Array(size)
+  const hull = new Int32Array(size)
+  const bounds = new Float64Array(size + 1)
+  for (let x = 0; x < size; x += 1) {
+    for (let y = 0; y < size; y += 1) line[y] = grid[y * size + x]!
+    distanceTransform1d(line, size, spacingY, out, hull, bounds)
+    for (let y = 0; y < size; y += 1) grid[y * size + x] = out[y]!
+  }
+  for (let y = 0; y < size; y += 1) {
+    line.set(grid.subarray(y * size, (y + 1) * size))
+    distanceTransform1d(line, size, spacingX, out, hull, bounds)
+    grid.set(out, y * size)
+  }
+  return grid
+}
+
+export function brushSignedDistance(
+  paint: Uint8Array,
+  width: number,
+  height: number,
+  size = CELL_PAINT_SIZE
+): Uint16Array {
+  const spacingX = width / size
+  const spacingY = height / size
+  const toInside = squaredDistanceTo(paint, true, size, spacingX, spacingY)
+  const toOutside = squaredDistanceTo(paint, false, size, spacingX, spacingY)
+  const field = new Uint16Array(size * size)
+  for (let index = 0; index < field.length; index += 1) {
+    const distance =
+      paint[index] !== 0
+        ? -Math.sqrt(toOutside[index]!)
+        : Math.sqrt(toInside[index]!)
+    field[index] = THREE.DataUtils.toHalfFloat(
+      Math.max(-MAX_BRUSH_DISTANCE, Math.min(MAX_BRUSH_DISTANCE, distance))
+    )
+  }
+  return field
+}
 
 export class LayerMaskNode {
   private readonly center = uniform(new THREE.Vector2(0, 0))
@@ -174,10 +256,11 @@ export class LayerMaskNode {
     if (next.shape === "brush") {
       if (!this.paintTexture) {
         this.paintTexture = new THREE.DataTexture(
-          new Uint8Array(CELL_PAINT_SIZE ** 2),
+          new Uint16Array(CELL_PAINT_SIZE ** 2),
           CELL_PAINT_SIZE,
           CELL_PAINT_SIZE,
-          THREE.RedFormat
+          THREE.RedFormat,
+          THREE.HalfFloatType
         )
         this.paintTexture.minFilter = THREE.LinearFilter
         this.paintTexture.magFilter = THREE.LinearFilter
@@ -185,7 +268,9 @@ export class LayerMaskNode {
       }
       if (next.paint !== this.paintValue) {
         const decoded = decodeCellPaintMask(next.paint)
-        this.paintTexture.image.data?.set(decoded.data)
+        this.paintTexture.image.data?.set(
+          brushSignedDistance(decoded.data, decoded.width, decoded.height)
+        )
         this.paintTexture.needsUpdate = true
         ;(this.paintAspect.value as THREE.Vector2).set(
           decoded.width,
@@ -258,53 +343,47 @@ export class LayerMaskNode {
       }
       case "brush": {
         const paint = this.paintTexture
-        const reach = this.feather
-        const brush = Fn(() => {
-          const paintUv = point.div(this.paintAspect).add(0.5).toVar()
-          const tap = (offset: TSLNode): TSLNode => {
-            if (!paint) return float(0)
-            const at = paintUv.add(offset.div(this.paintAspect))
-            const within = at.x
-              .greaterThanEqual(0)
-              .and(at.x.lessThan(1))
-              .and(at.y.greaterThanEqual(0))
-              .and(at.y.lessThan(1))
-            return select(within, texture(paint).sample(at).level(0).r, float(0))
-          }
-          const result = float(0).toVar()
-          If(reach.greaterThan(0.0005), () => {
-            let total: TSLNode = tap(vec2(0, 0))
-            let weight = 1
-            for (const [ring, count, ringWeight] of BRUSH_FEATHER_RINGS) {
-              for (let index = 0; index < count; index += 1) {
-                const angle = ((index + ring * 0.5) / count) * Math.PI * 2
-                total = total.add(
-                  tap(
-                    vec2(Math.cos(angle), Math.sin(angle)).mul(reach.mul(ring))
-                  ).mul(ringWeight)
-                )
-                weight += ringWeight
-              }
-            }
-            result.assign(total.div(weight))
-          }).Else(() => {
-            const inside = paintUv.x
-              .greaterThanEqual(0)
-              .and(paintUv.x.lessThan(1))
-              .and(paintUv.y.greaterThanEqual(0))
-              .and(paintUv.y.lessThan(1))
-            result.assign(select(inside, tap(vec2(0, 0)), float(0)))
-          })
-          return result
-        })
-        value = brush()
+        if (!paint) {
+          value = float(0)
+          break
+        }
+        const paintUv = point.div(this.paintAspect).add(0.5)
+        const within = clamp(paintUv, 0, 1)
+        const overshoot = length(paintUv.sub(within).mul(this.paintAspect))
+        const distance = float(texture(paint).sample(within).level(0).r).add(
+          overshoot
+        )
+        value = float(1).sub(smoothstep(softness.negate(), softness, distance))
         break
       }
       default: {
-        const distance = length(q.div(half))
-          .sub(1)
-          .mul(min(half.x, half.y))
-        value = float(1).sub(smoothstep(softness.negate(), softness, distance))
+        const ellipseDistance = Fn(() => {
+          const p = abs(q).toVar()
+          const focal = half.x.mul(half.x).sub(half.y.mul(half.y)).toVar()
+          const t = vec2(Math.SQRT1_2, Math.SQRT1_2).toVar()
+          for (let index = 0; index < ELLIPSE_DISTANCE_ITERATIONS; index += 1) {
+            const cubed = t.mul(t).mul(t)
+            const evolute = vec2(
+              focal.mul(cubed.x).div(half.x),
+              focal.negate().mul(cubed.y).div(half.y)
+            ).toVar()
+            const toPoint = p.sub(evolute).toVar()
+            const scale = length(half.mul(t).sub(evolute)).div(
+              max(length(toPoint), float(1e-6))
+            )
+            const next = clamp(
+              toPoint.mul(scale).add(evolute).div(half),
+              0,
+              1
+            ).toVar()
+            t.assign(next.div(max(length(next), float(1e-6))))
+          }
+          const gap = length(p.sub(half.mul(t)))
+          return select(length(q.div(half)).lessThan(1), gap.negate(), gap)
+        })
+        value = float(1).sub(
+          smoothstep(softness.negate(), softness, ellipseDistance())
+        )
         break
       }
     }
