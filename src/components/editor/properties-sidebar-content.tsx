@@ -1013,8 +1013,9 @@ export function SelectedLayerPropertiesContent({
             </Typography>
             <div className="flex items-center justify-between gap-3">
               <Typography tone="muted" variant="caption">
-                Randomize all points, distortion, animation, and finish
-                settings.
+                New palette and point layout. Distortion, motion and finish
+                stay. Drag the color points on the canvas; double-click one to
+                change its color, Alt-drag to change its reach.
               </Typography>
               <Button
                 onClick={() => randomizeGradientParams(layerId)}
@@ -1022,7 +1023,7 @@ export function SelectedLayerPropertiesContent({
                 uiSound="action.randomize"
                 variant="secondary"
               >
-                Randomize
+                Shuffle
               </Button>
             </div>
           </section>

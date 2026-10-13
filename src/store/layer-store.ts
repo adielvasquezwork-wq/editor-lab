@@ -22,6 +22,7 @@ import {
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { useAudioStore } from "@/store/audio-store"
+import { meshGradientPresetParams, shuffleMeshGradient } from "@/lib/editor/mesh-gradient"
 import { useEditorStore } from "@/store/editor-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import type {
@@ -29,7 +30,6 @@ import type {
   EditorLayer,
   FluidInteractionEvent,
   LayerCompositeMode,
-  LayerParameterValues,
   LayerType,
   MaskConfig,
   ParameterValue,
@@ -140,273 +140,6 @@ function getGradientNoiseDefaults(noiseType: string): {
     default:
       return null
   }
-}
-
-function getGradientPresetDefaults(
-  preset: string
-): Record<string, ParameterValue> | null {
-  switch (preset) {
-    case "aurora":
-      return {
-        activePoints: 5,
-        point1Color: "#ed6a5a",
-        point1Position: [-0.8, -0.6],
-        point1Weight: 1.0,
-        point2Color: "#f4f1bb",
-        point2Position: [0.2, 0.7],
-        point2Weight: 1.0,
-        point3Color: "#9bc1bc",
-        point3Position: [0.9, -0.3],
-        point3Weight: 1.0,
-        point4Color: "#5d576b",
-        point4Position: [-0.4, 0.5],
-        point4Weight: 1.0,
-        point5Color: "#e6ebe0",
-        point5Position: [0.6, -0.8],
-        point5Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.8,
-        warpScale: 4.0,
-        warpIterations: 3,
-        warpDecay: 1.0,
-        warpBias: 0.65,
-        vortexAmount: 0.3,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.08,
-        vignetteStrength: 0.0,
-        vignetteRadius: 1.5,
-        vignetteSoftness: 1,
-      }
-    case "sunset":
-      return {
-        activePoints: 4,
-        point1Color: "#1a0a2e",
-        point1Position: [-0.6, -0.8],
-        point1Weight: 0.8,
-        point2Color: "#c4420a",
-        point2Position: [0.3, 0.4],
-        point2Weight: 1.2,
-        point3Color: "#e8821a",
-        point3Position: [0.8, 0.7],
-        point3Weight: 0.9,
-        point4Color: "#4a1942",
-        point4Position: [-0.5, 0.3],
-        point4Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.6,
-        warpScale: 3.5,
-        warpIterations: 2,
-        warpDecay: 1.2,
-        warpBias: 0.5,
-        vortexAmount: 0.0,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.08,
-        vignetteStrength: 0.15,
-        vignetteRadius: 1.4,
-        vignetteSoftness: 0.8,
-      }
-    case "deep-ocean":
-      return {
-        activePoints: 4,
-        point1Color: "#020b1a",
-        point1Position: [0.0, -0.7],
-        point1Weight: 0.8,
-        point2Color: "#0a3d62",
-        point2Position: [-0.6, 0.4],
-        point2Weight: 1.2,
-        point3Color: "#3c8dbc",
-        point3Position: [0.7, 0.1],
-        point3Weight: 0.9,
-        point4Color: "#061224",
-        point4Position: [0.3, 0.8],
-        point4Weight: 1.0,
-        noiseType: "turbulence",
-        warpAmount: 0.04,
-        warpScale: 0.28,
-        warpIterations: 3,
-        warpDecay: 0.8,
-        warpBias: 0.4,
-        vortexAmount: 0.35,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.06,
-        vignetteStrength: 0.2,
-        vignetteRadius: 1.3,
-        vignetteSoftness: 0.7,
-      }
-    case "neon-glow":
-      return {
-        activePoints: 5,
-        point1Color: "#0a0a0a",
-        point1Position: [0.0, 0.0],
-        point1Weight: 0.6,
-        point2Color: "#b80050",
-        point2Position: [-0.7, -0.5],
-        point2Weight: 1.3,
-        point3Color: "#0088aa",
-        point3Position: [0.8, 0.3],
-        point3Weight: 1.1,
-        point4Color: "#220033",
-        point4Position: [0.2, -0.8],
-        point4Weight: 0.9,
-        point5Color: "#1a0a2e",
-        point5Position: [-0.5, 0.7],
-        point5Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.7,
-        warpScale: 4.0,
-        warpIterations: 3,
-        warpDecay: 1.0,
-        warpBias: 0.35,
-        vortexAmount: -0.25,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.05,
-        vignetteStrength: 0.1,
-        vignetteRadius: 1.5,
-        vignetteSoftness: 1,
-      }
-    default:
-      return null
-  }
-}
-
-function randomBetween(min: number, max: number): number {
-  return min + Math.random() * (max - min)
-}
-
-function randomInt(min: number, max: number): number {
-  return Math.floor(randomBetween(min, max + 1))
-}
-
-function clampValue(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
-
-function randomChoice<T>(values: readonly T[]): T {
-  return values[Math.floor(Math.random() * values.length)] as T
-}
-
-function randomHexColor(): string {
-  const hue = randomInt(0, 359)
-  const saturation = randomInt(45, 95) / 100
-  const lightness = randomInt(30, 78) / 100
-  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation
-  const hueSector = hue / 60
-  const x = chroma * (1 - Math.abs((hueSector % 2) - 1))
-  const match = lightness - chroma / 2
-
-  let r = 0
-  let g = 0
-  let b = 0
-
-  if (hueSector < 1) {
-    r = chroma
-    g = x
-  } else if (hueSector < 2) {
-    r = x
-    g = chroma
-  } else if (hueSector < 3) {
-    g = chroma
-    b = x
-  } else if (hueSector < 4) {
-    g = x
-    b = chroma
-  } else if (hueSector < 5) {
-    r = x
-    b = chroma
-  } else {
-    r = chroma
-    b = x
-  }
-
-  const toHex = (channel: number) =>
-    Math.round((channel + match) * 255)
-      .toString(16)
-      .padStart(2, "0")
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-function buildRandomGradientParams(): LayerParameterValues {
-  const params = resetLayerParameters("gradient")
-  const noiseType = randomChoice([
-    "simplex",
-    "perlin",
-    "value",
-    "voronoi",
-    "ridge",
-    "turbulence",
-  ] as const)
-  const noiseDefaults = getGradientNoiseDefaults(noiseType)
-
-  params.preset = "custom"
-  params.activePoints = randomInt(2, 5)
-
-  for (let index = 1; index <= 5; index += 1) {
-    params[`point${index}Color`] = randomHexColor()
-    params[`point${index}Position`] = [
-      Number(randomBetween(-1.1, 1.1).toFixed(2)),
-      Number(randomBetween(-1.1, 1.1).toFixed(2)),
-    ]
-    params[`point${index}Weight`] = Number(randomBetween(0.2, 2.4).toFixed(2))
-  }
-
-  params.noiseType = noiseType
-  params.noiseSeed = Number(randomBetween(0, 100).toFixed(1))
-  params.warpAmount = Number(
-    clampValue(
-      randomBetween(
-        (noiseDefaults?.warpAmount ?? 0.3) * 0.6,
-        (noiseDefaults?.warpAmount ?? 0.3) * 1.4 + 0.08
-      ),
-      0,
-      1
-    ).toFixed(2)
-  )
-  params.warpScale = Number(
-    clampValue(
-      randomBetween(
-        (noiseDefaults?.warpScale ?? 2.5) * 0.6,
-        (noiseDefaults?.warpScale ?? 2.5) * 1.4 + 0.2
-      ),
-      0.1,
-      6
-    ).toFixed(2)
-  )
-  params.warpIterations = randomInt(1, 4)
-  params.warpDecay = Number(randomBetween(0.4, 1.8).toFixed(2))
-  params.warpBias = Number(randomBetween(0, 1).toFixed(2))
-  params.vortexAmount = Number(randomBetween(-1, 1).toFixed(2))
-  params.animate = Math.random() > 0.2
-  params.motionAmount = Number(randomBetween(0, 1).toFixed(2))
-  params.motionSpeed = Number(randomBetween(0, 2).toFixed(2))
-  params.falloff = Number(randomBetween(0.8, 3.8).toFixed(2))
-  params.tonemapMode = randomChoice([
-    "none",
-    "aces",
-    "reinhard",
-    "totos",
-    "cinematic",
-  ] as const)
-  params.glowStrength = Number(randomBetween(0, 0.45).toFixed(2))
-  params.glowThreshold = Number(randomBetween(0, 0.6).toFixed(2))
-  params.grainAmount = Number(randomBetween(0, 0.25).toFixed(2))
-  params.vignetteStrength = Number(randomBetween(0, 0.35).toFixed(2))
-  params.vignetteRadius = Number(randomBetween(0.6, 1.5).toFixed(2))
-  params.vignetteSoftness = Number(randomBetween(0.2, 1).toFixed(2))
-
-  return params
 }
 
 function getDitheringPresetDefaults(
@@ -1033,7 +766,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         layer.id === id && layer.type === "gradient"
           ? {
               ...layer,
-              params: buildRandomGradientParams(),
+              params: { ...layer.params, ...shuffleMeshGradient() },
               runtimeError: null,
             }
           : layer
@@ -1098,7 +831,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           key === "preset" &&
           typeof value === "string"
         ) {
-          const defaults = getGradientPresetDefaults(value)
+          const defaults = meshGradientPresetParams(value)
 
           if (defaults) {
             Object.assign(nextParams, defaults)

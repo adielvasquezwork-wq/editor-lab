@@ -3,6 +3,7 @@ import {
   normalizeCompositionForDocument,
 } from "@/lib/editor/composition"
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
+import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
@@ -724,6 +725,17 @@ export function migrateLayerParams(
     for (const [key, value] of Object.entries(previousDefaults)) {
       if (params[key] === undefined) params[key] = value
     }
+  }
+
+  if (layer.type === "gradient") {
+    if (params.distortionMode === undefined) params.distortionMode = "advanced"
+    if (params.motionStyle === undefined)
+      params.motionStyle = params.animate === false ? "off" : "original"
+    if (
+      typeof params.preset === "string" &&
+      LEGACY_MESH_GRADIENT_PRESETS.has(params.preset)
+    )
+      params.preset = "custom"
   }
 
   if (layer.type === "text" && params.backgroundAlpha === undefined) {

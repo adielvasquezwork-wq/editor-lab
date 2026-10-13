@@ -201,9 +201,17 @@ export function brushSignedDistance(
   const toOutside = squaredDistanceTo(paint, false, size, spacingX, spacingY)
   const field = new Uint16Array(size * size)
   for (let index = 0; index < field.length; index += 1) {
+    const x = index % size
+    const y = Math.floor(index / size)
+    const toBounds = Math.min(
+      (x + 0.5) * spacingX,
+      (size - 0.5 - x) * spacingX,
+      (y + 0.5) * spacingY,
+      (size - 0.5 - y) * spacingY
+    )
     const distance =
       paint[index] !== 0
-        ? -Math.sqrt(toOutside[index]!)
+        ? -Math.min(Math.sqrt(toOutside[index]!), toBounds)
         : Math.sqrt(toInside[index]!)
     field[index] = THREE.DataUtils.toHalfFloat(
       Math.max(-MAX_BRUSH_DISTANCE, Math.min(MAX_BRUSH_DISTANCE, distance))
@@ -256,7 +264,9 @@ export class LayerMaskNode {
     if (next.shape === "brush") {
       if (!this.paintTexture) {
         this.paintTexture = new THREE.DataTexture(
-          new Uint16Array(CELL_PAINT_SIZE ** 2),
+          new Uint16Array(CELL_PAINT_SIZE ** 2).fill(
+            THREE.DataUtils.toHalfFloat(MAX_BRUSH_DISTANCE)
+          ),
           CELL_PAINT_SIZE,
           CELL_PAINT_SIZE,
           THREE.RedFormat,

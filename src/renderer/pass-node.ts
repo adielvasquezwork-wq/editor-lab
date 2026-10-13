@@ -231,6 +231,10 @@ export class PassNode {
     return false
   }
 
+  updateTimelineDuration(_duration: number): boolean {
+    return false
+  }
+
   updateOutputCropAspectRatio(_ratio: number | null): boolean {
     return false
   }

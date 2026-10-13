@@ -1,3 +1,4 @@
+import { MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import {
   EFFECT_PICKER_ORDER,
   getLayerLabel,
@@ -1014,21 +1015,21 @@ const bloomParams = [
 
 const gradientParams = [
   {
-    defaultValue: "custom",
+    defaultValue: "peach",
     group: "Points",
     key: "preset",
     label: "Preset",
     options: [
       { label: "Custom", value: "custom" },
-      { label: "Forest", value: "aurora" },
-      { label: "Ember", value: "sunset" },
-      { label: "Abyss", value: "deep-ocean" },
-      { label: "Violet", value: "neon-glow" },
+      ...MESH_GRADIENT_PRESETS.map((preset) => ({
+        label: preset.label,
+        value: preset.id,
+      })),
     ],
     type: "select",
   },
   {
-    defaultValue: 3,
+    defaultValue: 5,
     group: "Points",
     key: "activePoints",
     label: "Active Points",
@@ -1038,14 +1039,14 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: "#0E0C0C",
+    defaultValue: "#ff7a59",
     group: "Points",
     key: "point1Color",
     label: "Point 1 Color",
     type: "color",
   },
   {
-    defaultValue: [-0.82, -0.62] as [number, number],
+    defaultValue: [-1.15, 0.55] as [number, number],
     group: "Points",
     key: "point1Position",
     label: "Point 1 Position",
@@ -1055,7 +1056,7 @@ const gradientParams = [
     type: "vec2",
   },
   {
-    defaultValue: 0.42,
+    defaultValue: 1.2,
     group: "Points",
     key: "point1Weight",
     label: "Point 1 Weight",
@@ -1065,14 +1066,14 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: "#C1FF00",
+    defaultValue: "#ffd9b8",
     group: "Points",
     key: "point2Color",
     label: "Point 2 Color",
     type: "color",
   },
   {
-    defaultValue: [0.22, 0.72] as [number, number],
+    defaultValue: [1.05, 0.7] as [number, number],
     group: "Points",
     key: "point2Position",
     label: "Point 2 Position",
@@ -1082,7 +1083,7 @@ const gradientParams = [
     type: "vec2",
   },
   {
-    defaultValue: 1.55,
+    defaultValue: 1,
     group: "Points",
     key: "point2Weight",
     label: "Point 2 Weight",
@@ -1092,7 +1093,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: "#B2DAD5",
+    defaultValue: "#ffb3c7",
     group: "Points",
     key: "point3Color",
     label: "Point 3 Color",
@@ -1103,7 +1104,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: [0.88, -0.26] as [number, number],
+    defaultValue: [0.05, -0.15] as [number, number],
     group: "Points",
     key: "point3Position",
     label: "Point 3 Position",
@@ -1117,7 +1118,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: 0.64,
+    defaultValue: 0.9,
     group: "Points",
     key: "point3Weight",
     label: "Point 3 Weight",
@@ -1131,7 +1132,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: "#3B4148",
+    defaultValue: "#ffc857",
     group: "Points",
     key: "point4Color",
     label: "Point 4 Color",
@@ -1142,7 +1143,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: [-0.34, 0.52] as [number, number],
+    defaultValue: [-0.7, -0.8] as [number, number],
     group: "Points",
     key: "point4Position",
     label: "Point 4 Position",
@@ -1156,7 +1157,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: 0.82,
+    defaultValue: 1,
     group: "Points",
     key: "point4Weight",
     label: "Point 4 Weight",
@@ -1170,7 +1171,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: "#F3E7D0",
+    defaultValue: "#fff1e3",
     group: "Points",
     key: "point5Color",
     label: "Point 5 Color",
@@ -1181,7 +1182,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: [0.58, -0.76] as [number, number],
+    defaultValue: [1.2, -0.7] as [number, number],
     group: "Points",
     key: "point5Position",
     label: "Point 5 Position",
@@ -1195,7 +1196,7 @@ const gradientParams = [
     },
   },
   {
-    defaultValue: 0.48,
+    defaultValue: 1.1,
     group: "Points",
     key: "point5Weight",
     label: "Point 5 Weight",
@@ -1207,6 +1208,54 @@ const gradientParams = [
       gte: 5,
       key: "activePoints",
     },
+  },
+  {
+    animatable: false,
+    defaultValue: "simple",
+    group: "Distortion",
+    key: "distortionMode",
+    label: "Mode",
+    options: [
+      { label: "Simple", value: "simple" },
+      { label: "Advanced", value: "advanced" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 0.7,
+    description: "How far the colors melt into each other.",
+    group: "Distortion",
+    key: "softness",
+    label: "Softness",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    visibleWhen: { equals: "simple", key: "distortionMode" },
+  },
+  {
+    defaultValue: 0.3,
+    description: "How much the color fields bend and ripple.",
+    group: "Distortion",
+    key: "warp",
+    label: "Warp",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    visibleWhen: { equals: "simple", key: "distortionMode" },
+  },
+  {
+    defaultValue: 0.1,
+    description: "Adds finer ripples on top of the large shapes.",
+    group: "Distortion",
+    key: "detail",
+    label: "Detail",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    visibleWhen: { equals: "simple", key: "distortionMode" },
   },
   {
     defaultValue: "ridge",
@@ -1222,6 +1271,7 @@ const gradientParams = [
       { label: "Turbulence", value: "turbulence" },
     ],
     type: "select",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 70.3,
@@ -1232,6 +1282,7 @@ const gradientParams = [
     min: 0,
     step: 0.1,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 0.18,
@@ -1242,6 +1293,7 @@ const gradientParams = [
     min: 0,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 2.35,
@@ -1252,6 +1304,7 @@ const gradientParams = [
     min: 0.1,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 1,
@@ -1262,6 +1315,7 @@ const gradientParams = [
     min: 1,
     step: 1,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 1,
@@ -1272,6 +1326,7 @@ const gradientParams = [
     min: 0.1,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 0.5,
@@ -1282,6 +1337,7 @@ const gradientParams = [
     min: 0,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: 0.69,
@@ -1292,6 +1348,7 @@ const gradientParams = [
     min: -1,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
     defaultValue: true,
@@ -1299,30 +1356,46 @@ const gradientParams = [
     key: "animate",
     label: "Animate",
     type: "boolean",
+    visibleWhen: { equals: "gradient", key: "__internal" },
   },
   {
-    defaultValue: 1,
+    animatable: false,
+    defaultValue: "breathe",
+    description: "Every style loops seamlessly over the timeline duration.",
     group: "Animation",
-    key: "motionAmount",
-    label: "Motion Amount",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
+    key: "motionStyle",
+    label: "Motion",
+    options: [
+      { label: "Off", value: "off" },
+      { label: "Drift", value: "drift" },
+      { label: "Breathe", value: "breathe" },
+      { label: "Swirl", value: "swirl" },
+      { label: "Flow", value: "flow" },
+      { label: "Original", value: "original" },
+    ],
+    type: "select",
   },
   {
     defaultValue: 0.4,
     group: "Animation",
+    key: "motionAmount",
+    label: "Amount",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+    visibleWhen: { key: "motionStyle", notEquals: "off" },
+  },
+  {
+    defaultValue: 0.3,
+    group: "Animation",
     key: "motionSpeed",
-    label: "Motion Speed",
+    label: "Speed",
     max: 2,
     min: 0,
     step: 0.01,
     type: "number",
-    visibleWhen: {
-      equals: true,
-      key: "animate",
-    },
+    visibleWhen: { key: "motionStyle", notEquals: "off" },
   },
   {
     defaultValue: 2.05,
@@ -1333,9 +1406,10 @@ const gradientParams = [
     min: 0.5,
     step: 0.01,
     type: "number",
+    visibleWhen: { equals: "advanced", key: "distortionMode" },
   },
   {
-    defaultValue: "cinematic",
+    defaultValue: "none",
     group: "Finish",
     key: "tonemapMode",
     label: "Tonemap",
@@ -1369,7 +1443,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: 0.08,
+    defaultValue: 0.04,
     group: "Finish",
     key: "grainAmount",
     label: "Grain",
@@ -1379,7 +1453,7 @@ const gradientParams = [
     type: "number",
   },
   {
-    defaultValue: 0.12,
+    defaultValue: 0,
     group: "Finish",
     key: "vignetteStrength",
     label: "Vignette Strength",

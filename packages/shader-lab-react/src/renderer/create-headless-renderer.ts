@@ -80,6 +80,7 @@ export function createHeadlessRenderer(
       }
 
       pipeline.updateLogicalSize(frame.logicalSize)
+      pipeline.updateTimelineDuration(frame.clock.duration)
       pipeline.syncLayers(reverseComposition(frame.layers))
 
       if (ownsRenderer) {

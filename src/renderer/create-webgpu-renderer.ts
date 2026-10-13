@@ -75,6 +75,7 @@ export async function createWebGPURenderer(
     }
 
     pipeline.updateLogicalSize(frame.logicalSize)
+    pipeline.updateTimelineDuration(frame.clock.duration)
     pipeline.updateBackgroundColor(frame.sceneConfig.backgroundColor)
     pipeline.updateSceneConfig(frame.sceneConfig)
     pipeline.updateOutputCropAspectRatio(frame.cropAspectRatio)

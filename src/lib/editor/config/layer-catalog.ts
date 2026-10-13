@@ -388,6 +388,7 @@ export const NEW_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
 
 export const REWORKED_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([
   "blob-tracking",
+  "gradient",
   "pattern",
   "plotter",
   "threshold",

@@ -203,6 +203,7 @@ export class PipelineManager {
   private width: number
   private height: number
   private logicalWidth: number
+  private timelineDuration = 0
   private logicalHeight: number
   private sceneConfig: SceneConfig | null = null
   private readonly baseMaterial: THREE.MeshBasicMaterial
@@ -325,6 +326,7 @@ export class PipelineManager {
           : this.createPass(node.layer)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+        pass.updateTimelineDuration(this.timelineDuration)
         this.syncMaskFrame(pass)
         this.passMap.set(layerId, pass)
         this.markDirty()
@@ -505,6 +507,17 @@ export class PipelineManager {
     }
 
     this.markDirty()
+  }
+
+  updateTimelineDuration(duration: number): void {
+    const next = Number.isFinite(duration) ? Math.max(0, duration) : 0
+    if (next === this.timelineDuration) return
+    this.timelineDuration = next
+    let changed = false
+    for (const pass of this.passMap.values()) {
+      changed = pass.updateTimelineDuration(next) || changed
+    }
+    if (changed) this.markDirty()
   }
 
   updateLogicalSize(size: Size): void {

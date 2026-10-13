@@ -207,6 +207,7 @@ export class PipelineManager {
   private dirty = true
   private width: number
   private height: number
+  private timelineDuration = 0
   private logicalWidth: number
   private logicalHeight: number
   private rtA: THREE.WebGLRenderTarget
@@ -310,6 +311,7 @@ export class PipelineManager {
           : this.createPass(node)
         pass.resize(this.width, this.height)
         pass.updateLogicalSize(this.logicalWidth, this.logicalHeight)
+        pass.updateTimelineDuration(this.timelineDuration)
         pass.updateMaskLogicalSize(this.logicalWidth, this.logicalHeight)
         this.passMap.set(layerId, pass)
         this.dirty = true
@@ -470,6 +472,17 @@ export class PipelineManager {
     }
 
     this.dirty = true
+  }
+
+  updateTimelineDuration(duration: number): void {
+    const next = Number.isFinite(duration) ? Math.max(0, duration) : 0
+    if (next === this.timelineDuration) return
+    this.timelineDuration = next
+    let changed = false
+    for (const pass of this.passMap.values()) {
+      changed = pass.updateTimelineDuration(next) || changed
+    }
+    if (changed) this.dirty = true
   }
 
   updateLogicalSize(size: { height: number; width: number }): void {
