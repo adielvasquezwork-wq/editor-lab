@@ -14,6 +14,7 @@ import type {
   ParameterDefinition,
   ParameterValue,
   SelectParameterDefinition,
+  TextParameterDefinition,
 } from "@/types/editor"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { Select } from "@/components/ui/select"
@@ -30,8 +31,10 @@ import {
   toBooleanValue,
   toColorValue,
   toNumberValue,
+  toTextValue,
   toVec2Value,
 } from "./properties-sidebar-utils"
+import { applyAnnotationPreset } from "./annotations-controls"
 
 export function BlobInnerEffectSection({
   layerId,
@@ -62,11 +65,9 @@ export function BlobInnerEffectSection({
   }
 
   const definition = getLayerDefinition(innerType)
-  const definitions = definition.params.filter(
-    (entry) => entry.type !== "text"
-  )
+  const definitions = definition.params
 
-  const handleChange = (key: string, value: ParameterValue) => {
+  const writeInnerParam = (key: string, value: ParameterValue) => {
     const stored = useLayerStore
       .getState()
       .layers.find((layer) => layer.id === layerId)?.params.innerEffectParams
@@ -81,7 +82,14 @@ export function BlobInnerEffectSection({
     )
   }
   const updateInnerParam = (_id: string, key: string, value: ParameterValue) =>
-    handleChange(key, value)
+    writeInnerParam(key, value)
+  const handleChange = (key: string, value: ParameterValue) => {
+    if (innerType === "annotations" && key === "textPreset") {
+      applyAnnotationPreset(layerId, value, updateInnerParam)
+      return
+    }
+    writeInnerParam(key, value)
+  }
 
   return (
     <div className="flex flex-col gap-[10px] border-[var(--ds-border-divider)] border-l pl-3">
@@ -212,6 +220,38 @@ function InnerEffectField({
           />
         </div>
       )
+
+    case "text": {
+      const multiline = (definition as TextParameterDefinition).multiline
+      const className = `${multiline ? "min-h-[72px] resize-y" : "min-h-9"} w-full appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]`
+      const fieldProps = {
+        "aria-label": definition.label,
+        className,
+        maxLength: (definition as TextParameterDefinition).maxLength,
+        spellCheck: false,
+        value: toTextValue(value, String(definition.defaultValue ?? "")),
+      }
+      return (
+        <div className="flex flex-col gap-2">
+          <Typography tone="secondary" variant="label">
+            {definition.label}
+          </Typography>
+          {multiline ? (
+            <textarea
+              {...fieldProps}
+              onChange={(event) => onChange(definition.key, event.currentTarget.value)}
+              rows={3}
+            />
+          ) : (
+            <input
+              {...fieldProps}
+              onChange={(event) => onChange(definition.key, event.currentTarget.value)}
+              type="text"
+            />
+          )}
+        </div>
+      )
+    }
 
     case "vec2":
       return (
