@@ -4,7 +4,7 @@ export const DEFAULT_DRAFT_TITLE = "Untitled draft"
 export const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 
 export function isImageMimeType(mimeType: string): boolean {
-  return mimeType.startsWith("image/")
+  return mimeType.startsWith("image/") && mimeType !== "image/vnd.radiance"
 }
 
 export function maxBytesForMimeType(mimeType: string): number {

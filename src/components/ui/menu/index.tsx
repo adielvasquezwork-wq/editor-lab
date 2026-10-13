@@ -52,7 +52,7 @@ export function Menu({
           <Popover.Popup className="outline-none">
             <GlassPanel
               className={cn(
-                "flex w-[168px] flex-col p-[var(--ds-space-1)]",
+                "flex w-[168px] flex-col rounded-[calc(var(--ds-radius-icon)+var(--ds-space-1)+1px)] p-[var(--ds-space-1)]",
                 className
               )}
               variant="panel"

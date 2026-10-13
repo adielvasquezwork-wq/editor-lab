@@ -984,7 +984,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
           return false
         }
 
-        if (track.binding.kind === "layer") {
+        if (layer.unavailableLayer || track.binding.kind === "layer") {
           return true
         }
 

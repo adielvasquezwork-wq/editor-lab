@@ -4,6 +4,7 @@ import {
 } from "./composition-tree"
 
 export interface HierarchyLayer {
+  unavailableLayer?: Record<string, unknown>
   id: string
   kind: string
   parentId?: string | null | undefined
@@ -23,7 +24,11 @@ export function validateLayerHierarchy(
     if (parent !== null && ancestors.at(-1) !== parent) {
       throw new Error("Group children must follow their parent in layer order.")
     }
-    if (layer.kind === "group") {
+    // Unavailable leaves use inert group placeholders, but remain leaves structurally.
+    if (
+      layer.kind === "group" &&
+      (!layer.unavailableLayer || layer.unavailableLayer.kind === "group")
+    ) {
       if (ancestors.length >= MAX_COMPOSITION_GROUP_DEPTH) {
         throw new Error(
           `Groups support at most ${MAX_COMPOSITION_GROUP_DEPTH} levels.`

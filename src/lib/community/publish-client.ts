@@ -3,10 +3,12 @@ import {
   describeBlockedLanguage,
   findProfanityInScene,
 } from "@/lib/community/language"
+import { normalizeAssetMimeType } from "@/lib/editor/media-file"
 import { describeUploadLimit } from "@/lib/community/upload-limits"
 import {
   buildLabProjectFile,
   buildPublishableProjectFile,
+  describeUnavailableLayers,
   type LabProjectFile,
 } from "@/lib/editor/project-file"
 import { useAssetStore } from "@/store/asset-store"
@@ -123,10 +125,12 @@ function inspectScene(options: { prune: boolean }): {
     .assets.filter(
       (asset) => asset.source === "local" && referencedIds.has(asset.id)
     )
+    .map((asset) => ({ ...asset, mimeType: normalizeAssetMimeType(asset) }))
 
   let problem: string | null =
-    options.prune && projectFile.layers.length === 0
-      ? EMPTY_SCENE_MESSAGE
+    options.prune
+      ? describeUnavailableLayers(projectFile) ??
+        (projectFile.layers.length === 0 ? EMPTY_SCENE_MESSAGE : null)
       : null
   let totalBytes = 0
 

@@ -93,3 +93,41 @@ export function inferFileAssetKind(file: File): AssetKind | null {
 
   return null
 }
+
+const MIME_BY_EXTENSION: Record<string, string> = {
+  aac: "audio/aac",
+  flac: "audio/flac",
+  glb: "model/gltf-binary",
+  gltf: "model/gltf+json",
+  hdr: "image/vnd.radiance",
+  m4a: "audio/mp4",
+  mov: "video/quicktime",
+  mp3: "audio/mpeg",
+  oga: "audio/ogg",
+  ogg: "audio/ogg",
+  opus: "audio/ogg",
+  svg: "image/svg+xml",
+  wav: "audio/wav",
+}
+
+const MIME_ALIASES: Record<string, string> = {
+  "audio/mp3": "audio/mpeg",
+  "audio/opus": "audio/ogg",
+  "audio/wave": "audio/wav",
+  "audio/x-flac": "audio/flac",
+  "audio/x-wav": "audio/wav",
+}
+
+/** Canonicalize browser MIME guesses, including assets restored from old drafts. */
+export function normalizeAssetMimeType(input: {
+  fileName: string
+  mimeType: string
+}): string {
+  const mimeType = input.mimeType.toLowerCase().split(";")[0]!.trim()
+  const extension = input.fileName.toLowerCase().split(".").at(-1) ?? ""
+  const extensionMime = Object.hasOwn(MIME_BY_EXTENSION, extension)
+    ? MIME_BY_EXTENSION[extension]
+    : undefined
+  const alias = Object.hasOwn(MIME_ALIASES, mimeType) ? MIME_ALIASES[mimeType] : undefined
+  return extensionMime ?? alias ?? mimeType
+}

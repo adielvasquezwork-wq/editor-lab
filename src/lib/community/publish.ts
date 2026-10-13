@@ -20,6 +20,7 @@ import { isAllowedAssetOrigin } from "@/lib/editor/remote-asset"
 import type { LabProjectFile } from "@/lib/editor/project-file"
 import {
   hasImportedCustomShaderCode,
+  describeUnavailableLayers,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
 
@@ -45,6 +46,7 @@ export const UPLOADABLE_MIME_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/svg+xml",
+  "image/vnd.radiance",
   "image/webp",
   "model/gltf-binary",
   "model/gltf+json",
@@ -61,6 +63,8 @@ const UPLOAD_EXTENSIONS: Record<string, string> = {
   "image/svg+xml": "svg",
   "image/webp": "webp",
   "model/gltf-binary": "glb",
+  "model/gltf+json": "gltf",
+  "image/vnd.radiance": "hdr",
   "video/mp4": "mp4",
   "video/quicktime": "mov",
   "video/webm": "webm",
@@ -214,6 +218,9 @@ export function validateProjectFilePayload(raw: string): PublishValidation {
   if (profanityLocation) {
     throw new Error(describeBlockedLanguage(profanityLocation))
   }
+
+  const unavailable = describeUnavailableLayers(projectFile)
+  if (unavailable) throw new Error(unavailable)
 
   if (projectFile.layers.length === 0) {
     throw new Error("A scene needs at least one visible layer.")

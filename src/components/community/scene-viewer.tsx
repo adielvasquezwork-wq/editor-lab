@@ -8,6 +8,7 @@ import {
   buildViewerProjectState,
   parseLabProjectFile,
 } from "@/lib/editor/project-file"
+import { buildViewerAudio } from "@/lib/community/viewer-audio"
 import { cn } from "@/lib/cn"
 import { buildRendererFrame } from "@/renderer/contracts"
 import { advanceProjectTimeline } from "@/renderer/project-clock"
@@ -80,6 +81,7 @@ export function SceneViewer({
       }
 
       let disposed = false
+      const abortController = new AbortController()
       let animationFrame: number | null = null
       let resizeObserver: ResizeObserver | null = null
       let visibilityObserver: IntersectionObserver | null = null
@@ -89,6 +91,7 @@ export function SceneViewer({
 
       disposeRef.current = () => {
         disposed = true
+        abortController.abort()
 
         if (animationFrame !== null) {
           window.cancelAnimationFrame(animationFrame)
@@ -105,7 +108,7 @@ export function SceneViewer({
       try {
         const [{ createWebGPURenderer }, labText] = await Promise.all([
           import("@/renderer/create-webgpu-renderer"),
-          fetch(labUrl).then((res) => {
+          fetch(labUrl, { signal: abortController.signal }).then((res) => {
             if (!res.ok) {
               throw new Error("Could not load the scene file.")
             }
@@ -114,11 +117,17 @@ export function SceneViewer({
           }),
         ])
 
+        if (disposed) return
         const project = buildViewerProjectState(parseLabProjectFile(labText))
         const renderer = await createWebGPURenderer(canvas)
+        if (disposed) {
+          renderer.dispose()
+          return
+        }
 
         disposeRef.current = () => {
           disposed = true
+          abortController.abort()
 
           if (animationFrame !== null) {
             window.cancelAnimationFrame(animationFrame)
@@ -148,12 +157,15 @@ export function SceneViewer({
           teardown()
         }
 
-        await renderer.initialize()
+        // Cleanup must wait for initialization as well as in-flight frames.
+        framePending = renderer.initialize()
+        const [, audio] = await Promise.all([
+          framePending,
+          buildViewerAudio(project, abortController.signal),
+        ])
 
-        if (disposed) {
-          renderer.dispose()
-          return
-        }
+        framePending = null
+        if (disposed) return
 
         const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
         const documentSize = getDocumentSize(
@@ -207,7 +219,7 @@ export function SceneViewer({
 
             const frame = buildRendererFrame({
               assets: project.assets,
-              audio: null,
+              audio,
               clockTime,
               delta,
               layers: project.layers,
@@ -238,6 +250,7 @@ export function SceneViewer({
               renderer.isDeviceLost() ||
               consecutiveFailures >= MAX_CONSECUTIVE_FRAME_FAILURES
             ) {
+              disposeRef.current?.()
               setFailed(true)
               return
             }
@@ -328,7 +341,10 @@ export function SceneViewer({
 
         resume()
       } catch {
-        setFailed(true)
+        if (!disposed) {
+          disposeRef.current?.()
+          setFailed(true)
+        }
       }
     }
 

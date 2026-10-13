@@ -111,6 +111,9 @@ export function collectReferencedAssetIds(input: {
 export function buildPublishableProjectFile(
   file: LabProjectFile
 ): LabProjectFile {
+  // Preserve unavailable data in drafts/exports; publishing reports it explicitly.
+  if (file.layers.some((layer) => layer.unavailableLayer)) return file
+
   const audioSource = file.audio?.source ?? null
   const audioLayerId =
     audioSource?.kind === "video-layer" ? audioSource.layerId : null
@@ -314,7 +317,7 @@ const baseLayerShape = {
   visible: z.boolean(),
 }
 
-const layerSchema = z.discriminatedUnion("kind", [
+const knownLayerSchema = z.discriminatedUnion("kind", [
   z.looseObject({
     ...baseLayerShape,
     kind: z.literal("group"),
@@ -337,6 +340,58 @@ const layerSchema = z.discriminatedUnion("kind", [
     type: z.enum(SOURCE_LAYER_TYPES),
   }),
 ])
+
+// Keep unknown types recoverable without letting malformed known layers bypass validation.
+const unknownLayerSchema = z.looseObject({
+  ...baseLayerShape,
+  kind: z.string().min(1),
+  type: z.string().min(1),
+})
+const knownLayerTypes = new Set<string>([
+  ...SOURCE_LAYER_TYPES,
+  ...EFFECT_LAYER_TYPES,
+  "model",
+  "group",
+])
+
+const layerSchema = z.preprocess((value) => {
+  if (!(value && typeof value === "object")) return value
+  const candidate = value as Record<string, unknown>
+  const original = candidate.unavailableLayer ?? candidate
+  const result = unknownLayerSchema.safeParse(original)
+  if (!result.success) return candidate.unavailableLayer ? null : value
+  const raw = result.data
+  if (knownLayerTypes.has(raw.type)) {
+    // A newer app can restore a formerly unavailable layer from its saved payload.
+    return candidate.unavailableLayer
+      ? { ...raw, id: candidate.id, parentId: candidate.parentId }
+      : value
+  }
+  return {
+    ...raw,
+    id: candidate.id,
+    parentId: candidate.parentId,
+    kind: "group",
+    type: "group",
+    compositeMode: "filter",
+    name: candidate.unavailableLayer
+      ? candidate.name
+      : `${raw.name} (Unavailable: ${raw.type})`,
+    visible: false,
+    locked: true,
+    params: {},
+    mask: null,
+    runtimeError: `Layer type "${raw.type}" is unavailable. Its original data is preserved.`,
+    unavailableLayer: raw,
+  }
+}, knownLayerSchema)
+
+export function describeUnavailableLayers(file: LabProjectFile): string | null {
+  const count = file.layers.filter((layer) => layer.unavailableLayer).length
+  return count > 0
+    ? `This scene contains ${count} unavailable layer(s). Remove or replace them before publishing; their original data is preserved in the project.`
+    : null
+}
 
 const timelineKeyframeSchema = z.looseObject({
   id: z.string(),
@@ -474,7 +529,9 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   validateLayerHierarchy(result.data.layers)
   if (
     result.data.version < 7 &&
-    result.data.layers.some((layer) => layer.kind === "group" || layer.parentId)
+    result.data.layers.some((layer) =>
+      (layer.kind === "group" && !layer.unavailableLayer) || layer.parentId
+    )
   ) {
     throw new Error("Groups require project version 7 or later.")
   }
@@ -617,6 +674,7 @@ export function applyLabProjectFile(
 }
 
 export interface ViewerProjectState {
+  audio: EditorAudioSnapshot
   assets: EditorAsset[]
   composition: Size
   layers: EditorLayer[]
@@ -638,6 +696,7 @@ export function buildViewerProjectState(
 
   return {
     assets,
+    audio: normalizeProjectAudio(projectFile.audio),
     composition: projectFile.composition,
     layers,
     sceneConfig:
@@ -788,6 +847,7 @@ function hydrateImportedLayer(
   assetRefById: Map<string, LabProjectFile["assets"][number]>,
   version: number
 ): EditorLayer {
+  if (layer.unavailableLayer) return { ...layer, visible: false, locked: true }
   const params = migrateLayerParams(layer, version)
   const depthRef = layer.depthAssetId
     ? assetRefById.get(layer.depthAssetId)
