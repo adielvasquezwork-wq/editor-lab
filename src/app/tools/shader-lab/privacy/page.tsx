@@ -1,7 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
 import {
   ABOUT_PATH,
   EDITOR_PATH,
@@ -20,6 +20,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   openGraph: {
     description: DESCRIPTION,
+    images: APP_OG_IMAGES,
     title: "Privacy Policy",
     type: "website",
     url: `${APP_BASE_URL}${PRIVACY_PATH}`,

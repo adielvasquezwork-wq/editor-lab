@@ -28,6 +28,25 @@ function resolveAppBaseUrl() {
 
 export const APP_BASE_URL = resolveAppBaseUrl()
 
+export const APP_OG_IMAGES = [
+  {
+    alt: APP_DEFAULT_TITLE,
+    height: 630,
+    type: "image/gif",
+    url: "/opengraph-image.gif",
+    width: 1200,
+  },
+]
+
+export const APP_TWITTER_IMAGES = [
+  {
+    alt: APP_DEFAULT_TITLE,
+    height: 630,
+    url: "/opengraph-image.jpg",
+    width: 1200,
+  },
+]
+
 /**
  * Preview and development deployments must never be indexed or listed. An
  * unset VERCEL_ENV counts as production on purpose: it only occurs off-Vercel

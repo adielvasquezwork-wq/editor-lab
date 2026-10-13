@@ -2,7 +2,7 @@ import type { Metadata, Route } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
 import {
@@ -30,6 +30,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   openGraph: {
     description: DESCRIPTION,
+    images: APP_OG_IMAGES,
     title: "About",
     type: "website",
     url: `${APP_BASE_URL}${ABOUT_PATH}`,

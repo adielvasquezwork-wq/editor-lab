@@ -5,7 +5,9 @@ import {
   APP_DEFAULT_TITLE,
   APP_DESCRIPTION,
   APP_NAME,
+  APP_OG_IMAGES,
   APP_TITLE_TEMPLATE,
+  APP_TWITTER_IMAGES,
   isProductionDeployment,
 } from "@/lib/app"
 import { cn } from "@/lib/cn"
@@ -28,14 +30,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(APP_BASE_URL),
   openGraph: {
     description: APP_DESCRIPTION,
-    images: [
-      {
-        alt: APP_DEFAULT_TITLE,
-        height: 630,
-        url: "/opengraph-image.jpg",
-        width: 1200,
-      },
-    ],
+    images: APP_OG_IMAGES,
     locale: "en_US",
     siteName: APP_NAME,
     title: {
@@ -59,14 +54,7 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     description: APP_DESCRIPTION,
-    images: [
-      {
-        alt: APP_DEFAULT_TITLE,
-        height: 630,
-        url: "/twitter-image.jpg",
-        width: 1200,
-      },
-    ],
+    images: APP_TWITTER_IMAGES,
     title: {
       default: APP_DEFAULT_TITLE,
       template: APP_TITLE_TEMPLATE,

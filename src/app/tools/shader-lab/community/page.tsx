@@ -5,7 +5,7 @@ import { CommunityHero } from "@/components/community/community-hero"
 import { SCENES_ANCHOR_ID } from "@/components/community/scenes-anchor"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { PublicSceneEffectFilter } from "@/components/community/public-scene-effect-filter"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getHeroScene, getPublicScenes } from "@/lib/community/public-scenes"
 import { getCommunityEffectSelection } from "@/lib/community/scene-effect-filter"
@@ -29,6 +29,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   openGraph: {
     description: DESCRIPTION,
+    images: APP_OG_IMAGES,
     title: "Community",
     type: "website",
     url: `${APP_BASE_URL}${COMMUNITY_PATH}`,

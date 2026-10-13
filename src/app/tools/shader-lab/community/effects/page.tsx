@@ -3,7 +3,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { Typography } from "@/components/ui/typography"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
 import {
@@ -25,6 +25,7 @@ export const metadata: Metadata = {
   description: DESCRIPTION,
   openGraph: {
     description: DESCRIPTION,
+    images: APP_OG_IMAGES,
     title: "Shader effects",
     type: "website",
     url: `${APP_BASE_URL}${EFFECTS_PATH}`,
