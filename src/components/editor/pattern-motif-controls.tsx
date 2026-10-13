@@ -14,11 +14,20 @@ import {
 import { Typography } from "@/components/ui/typography"
 import { playOptionalUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
-import { getAssetAccept, inferFileAssetKind } from "@/lib/editor/media-file"
+import {
+  getAssetAccept,
+  inferFileAssetKind,
+  isSvgMediaSource,
+} from "@/lib/editor/media-file"
 import { MAX_PATTERN_MOTIFS } from "@/lib/editor/pattern-motifs"
+import {
+  extractSvgColors,
+  MAX_SVG_PALETTE_COLORS,
+} from "@/renderer/svg-palette"
 import { useAssetStore } from "@/store/asset-store"
 import { useLayerStore } from "@/store/layer-store"
 import type { LayerParameterValues, ParameterValue } from "@/types/editor"
+import { readSvgText, SvgColorPalette } from "./svg-shape-controls"
 
 const DRAG_THRESHOLD = 4
 const KEY_STEPS: Record<string, number> = {
@@ -436,6 +445,16 @@ export function PatternMotifControls({
         </Typography>
       ) : null}
 
+      {values.colorMode === "original" ? (
+        <MotifColorPalette
+          motifIds={motifIds}
+          onChange={(next) => updateLayerParam(layerId, "motifPalette", next)}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          value={values.motifPalette}
+        />
+      ) : null}
+
       <input
         accept={getAssetAccept("image")}
         className="hidden"
@@ -452,3 +471,56 @@ export function PatternMotifControls({
     </div>
   )
 }
+
+function MotifColorPalette({
+  motifIds,
+  value,
+  onChange,
+  onInteractionStart,
+  onInteractionEnd,
+}: {
+  motifIds: readonly string[]
+  value: ParameterValue | undefined
+  onChange: (next: string) => void
+  onInteractionStart?: (() => void) | undefined
+  onInteractionEnd?: (() => void) | undefined
+}) {
+  const assets = useAssetStore((state) => state.assets)
+  const urlsKey = motifIds
+    .map((id) => assets.find((asset) => asset.id === id))
+    .flatMap((asset) => (asset && isSvgMediaSource(asset) ? [asset.url] : []))
+    .join("\n")
+  const [colors, setColors] = useState<string[]>([])
+
+  useEffect(() => {
+    const urls = urlsKey ? urlsKey.split("\n") : []
+    if (urls.length === 0) {
+      setColors([])
+      return
+    }
+    let active = true
+    Promise.allSettled(urls.map((url) => readSvgText(url))).then((results) => {
+      if (!active) return
+      const merged = new Set<string>()
+      for (const result of results) {
+        if (result.status !== "fulfilled") continue
+        for (const color of extractSvgColors(result.value)) merged.add(color)
+      }
+      setColors([...merged].slice(0, MAX_SVG_PALETTE_COLORS))
+    })
+    return () => {
+      active = false
+    }
+  }, [urlsKey])
+
+  return (
+    <SvgColorPalette
+      colors={colors}
+      onChange={onChange}
+      onInteractionEnd={onInteractionEnd}
+      onInteractionStart={onInteractionStart}
+      value={value}
+    />
+  )
+}
+

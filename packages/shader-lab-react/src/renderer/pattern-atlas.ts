@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import { applySvgPalette, type SvgPalette } from "./svg-palette"
 
 export const PATTERN_PRESET_SOURCES = {
   bars: [
@@ -144,6 +145,27 @@ export function loadMotifImage(url: string): Promise<HTMLImageElement> {
     image.onerror = () => reject(new Error(`Unable to load pattern motif: ${url}`))
     image.src = url
   })
+}
+
+export async function loadRecoloredMotif(
+  url: string,
+  palette: SvgPalette
+): Promise<HTMLImageElement> {
+  const response = await fetch(url)
+  if (!response.ok) {
+    throw new Error(`Unable to load pattern motif: ${url}`)
+  }
+  const type = response.headers.get("content-type") ?? ""
+  if (!(type.includes("svg") || /\.svg($|[?#])/i.test(url))) {
+    return loadMotifImage(url)
+  }
+  const svg = applySvgPalette(await response.text(), palette)
+  const blobUrl = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }))
+  try {
+    return await loadMotifImage(blobUrl)
+  } finally {
+    URL.revokeObjectURL(blobUrl)
+  }
 }
 
 export function buildMotifAtlas(

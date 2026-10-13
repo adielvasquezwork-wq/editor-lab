@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import { parseSvgPalette } from "@/renderer/svg-palette"
 import {
   clamp,
   float,
@@ -19,6 +20,7 @@ import {
   buildMotifAtlas,
   buildPatternAtlas,
   loadMotifImage,
+  loadRecoloredMotif,
   MAX_PATTERN_MOTIFS,
   type PatternPreset,
 } from "@/renderer/pattern-atlas"
@@ -112,6 +114,7 @@ export class PatternPass extends PassNode {
   private needsRefresh = false
   private motifUrls: string[] = []
   private motifsKey = ""
+  private motifPalette = ""
   private readonly motifImages = new Map<string, Promise<HTMLImageElement>>()
   private motifCount = 0
   private motifsFailed = 0
@@ -171,6 +174,10 @@ export class PatternPass extends PassNode {
     const nextCellSize =
       typeof params.cellSize === "number" ? Math.max(4, Math.round(params.cellSize)) : 12
     const nextPreset = this.resolvePreset(params.preset)
+    const nextMotifPalette =
+      typeof params.motifPalette === "string" ? params.motifPalette : ""
+    const motifPaletteChanged = nextMotifPalette !== this.motifPalette
+    this.motifPalette = nextMotifPalette
     const nextColorMode = this.resolveColorMode(params.colorMode)
     const nextBgOpacity =
       typeof params.bgOpacity === "number" ? clamp01(params.bgOpacity) : 0
@@ -230,7 +237,9 @@ export class PatternPass extends PassNode {
     )
 
     const needsAtlasRebuild =
-      nextCellSize !== this.currentCellSize || nextPreset !== this.currentPreset
+      nextCellSize !== this.currentCellSize ||
+      nextPreset !== this.currentPreset ||
+      (motifPaletteChanged && nextPreset === "custom")
 
     this.currentCellSize = nextCellSize
     this.currentPreset = nextPreset
@@ -261,9 +270,9 @@ export class PatternPass extends PassNode {
     this.motifUrls = nextUrls
     this.motifsFailed = 0
 
-    for (const url of this.motifImages.keys()) {
-      if (!nextUrls.includes(url)) {
-        this.motifImages.delete(url)
+    for (const key of this.motifImages.keys()) {
+      if (!nextUrls.includes(key.split("\n")[0] ?? key)) {
+        this.motifImages.delete(key)
       }
     }
 
@@ -594,11 +603,15 @@ export class PatternPass extends PassNode {
   }> {
     const results = await Promise.allSettled(
       this.motifUrls.map((url) => {
-        let image = this.motifImages.get(url)
+        const palette = this.motifPalette
+        const key = palette ? `${url}\n${palette}` : url
+        let image = this.motifImages.get(key)
         if (!image) {
-          image = loadMotifImage(url)
-          this.motifImages.set(url, image)
-          image.catch(() => this.motifImages.delete(url))
+          image = palette
+            ? loadRecoloredMotif(url, parseSvgPalette(palette))
+            : loadMotifImage(url)
+          this.motifImages.set(key, image)
+          image.catch(() => this.motifImages.delete(key))
         }
         return image
       }),

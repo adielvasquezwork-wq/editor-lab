@@ -18,7 +18,7 @@ import type { LayerParameterValues, ParameterValue } from "@/types/editor"
 const SVG_ACCEPT = "image/svg+xml,.svg"
 const svgTextCache = new Map<string, Promise<string>>()
 
-function readSvgText(url: string): Promise<string> {
+export function readSvgText(url: string): Promise<string> {
   let pending = svgTextCache.get(url)
   if (!pending) {
     pending = fetch(url).then((response) => {
@@ -161,8 +161,32 @@ export function SvgShapePalette({
     }
   }, [url])
 
+  return (
+    <SvgColorPalette
+      colors={colors}
+      onChange={(next) => updateLayerParam(layerId, "svgPalette", next)}
+      onInteractionEnd={onInteractionEnd}
+      onInteractionStart={onInteractionStart}
+      value={values.svgPalette}
+    />
+  )
+}
+
+export function SvgColorPalette({
+  colors,
+  value,
+  onChange,
+  onInteractionStart,
+  onInteractionEnd,
+}: {
+  colors: readonly string[]
+  value: ParameterValue | undefined
+  onChange: (next: string) => void
+  onInteractionStart?: (() => void) | undefined
+  onInteractionEnd?: (() => void) | undefined
+}) {
   if (colors.length === 0) return null
-  const palette = parseSvgPalette(values.svgPalette)
+  const palette = parseSvgPalette(value)
   const edited = Object.keys(palette).length > 0
 
   return (
@@ -172,11 +196,7 @@ export function SvgShapePalette({
           File colors
         </Typography>
         {edited ? (
-          <Button
-            onClick={() => updateLayerParam(layerId, "svgPalette", "")}
-            size="compact"
-            variant="ghost"
-          >
+          <Button onClick={() => onChange("")} size="compact" variant="ghost">
             Reset
           </Button>
         ) : null}
@@ -198,9 +218,7 @@ export function SvgShapePalette({
               onInteractionEnd={onInteractionEnd}
               onInteractionStart={onInteractionStart}
               onValueChange={(next) =>
-                updateLayerParam(
-                  layerId,
-                  "svgPalette",
+                onChange(
                   serializeSvgPalette({ ...palette, [color]: next.toLowerCase() })
                 )
               }

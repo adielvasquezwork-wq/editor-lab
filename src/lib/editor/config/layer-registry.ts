@@ -2355,6 +2355,14 @@ const patternParams = [
     type: "select",
   },
   {
+    animatable: false,
+    defaultValue: "",
+    key: "motifPalette",
+    label: "Motif Palette",
+    type: "text",
+    visibleWhen: { key: "__internal", equals: "pattern" },
+  },
+  {
     defaultValue: "#f5f5f0",
     key: "monoColor",
     label: "Tint",
