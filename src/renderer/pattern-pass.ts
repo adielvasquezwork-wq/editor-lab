@@ -601,6 +601,12 @@ export class PatternPass extends PassNode {
     motifs: number
     texture: THREE.CanvasTexture | null
   }> {
+    for (const key of this.motifImages.keys()) {
+      const separator = key.indexOf("\n")
+      if (separator >= 0 && key.slice(separator + 1) !== this.motifPalette) {
+        this.motifImages.delete(key)
+      }
+    }
     const results = await Promise.allSettled(
       this.motifUrls.map((url) => {
         const palette = this.motifPalette

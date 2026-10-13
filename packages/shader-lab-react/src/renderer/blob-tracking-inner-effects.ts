@@ -34,6 +34,21 @@ export const INNER_EFFECT_TYPES: readonly ShaderLabEffectLayerType[] = [
   "smear",
   "threshold",
   "voxel",
+  "annotations",
+  "connected-dots",
+  "displaced-rings",
+  "erosion",
+  "flares",
+  "focus-blur",
+  "glass",
+  "gradient-map",
+  "grain",
+  "lumen-print",
+  "outline",
+  "photocopy",
+  "photographic-cells",
+  "relief",
+  "signal-rot",
 ]
 
 export type ShaderLabBlobInnerEffect =
