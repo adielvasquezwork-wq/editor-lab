@@ -356,6 +356,7 @@ export function EditorCanvasViewport() {
       <div
         ref={viewportRef}
         className="absolute inset-0 overflow-hidden"
+        data-canvas-viewport="true"
         role="application"
         aria-label="Canvas viewport"
         style={{
@@ -416,26 +417,28 @@ export function EditorCanvasViewport() {
                 panning={isSpacePressed}
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />
-              <ModelGizmoOverlay
-                panning={isSpacePressed}
-                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-              />
-              <MaskHandlesOverlay
-                panning={isSpacePressed}
-                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-              />
-              <ShapeHandlesOverlay
-                panning={isSpacePressed}
-                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-              />
-              <TextHandlesOverlay
-                panning={isSpacePressed}
-                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-              />
-              <AnnotationHandlesOverlay
-                panning={isSpacePressed}
-                disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-              />
+              <div className="contents" data-canvas-handles="true">
+                <ModelGizmoOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <MaskHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <ShapeHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <TextHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <AnnotationHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+              </div>
               <TextEditOverlay
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />

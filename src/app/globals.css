@@ -349,3 +349,9 @@
     line-height: 12px;
   }
 }
+
+@media (hover: hover) {
+  [data-canvas-viewport]:not(:hover) [data-canvas-handles] {
+    visibility: hidden;
+  }
+}
