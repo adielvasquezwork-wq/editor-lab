@@ -56,7 +56,9 @@ export function AnnotationHandlesOverlay({
   }
   return (
     <GeometryHandles
+      aspect="locked"
       key={id}
+      rotatable={false}
       dataPrefix="annotation"
       label="Annotation target handles"
       geometry={geometryOf(layer.params)}

@@ -49,6 +49,7 @@ import {
 } from "@/lib/editor/view-transform"
 import { useAssetStore } from "@/store/asset-store"
 import { useCanvasHandlesStore } from "@/store/canvas-handles-store"
+import { useCellPaintStore } from "@/store/cell-paint-store"
 import { LayoutGridOverlay } from "@/components/editor/layout-grid-overlay"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -68,6 +69,7 @@ export function EditorCanvasViewport() {
   )
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const handlesPeeking = useCanvasHandlesStore((state) => state.peeking)
+  const paintingCells = useCellPaintStore((state) => state.layerId !== null)
   const exitImmersiveCanvas = useEditorStore(
     (state) => state.exitImmersiveCanvas
   )
@@ -422,12 +424,11 @@ export function EditorCanvasViewport() {
                 panning={isSpacePressed}
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}
               />
-              <div className="contents" data-canvas-handles="true">
+              <div
+                className={paintingCells ? "hidden" : "contents"}
+                data-canvas-handles="true"
+              >
                 <ModelGizmoOverlay
-                  panning={isSpacePressed}
-                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
-                />
-                <MaskHandlesOverlay
                   panning={isSpacePressed}
                   disabled={exportingPreview || !isReady || !!pendingSceneSlug}
                 />
@@ -440,6 +441,10 @@ export function EditorCanvasViewport() {
                   disabled={exportingPreview || !isReady || !!pendingSceneSlug}
                 />
                 <AnnotationHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <MaskHandlesOverlay
                   panning={isSpacePressed}
                   disabled={exportingPreview || !isReady || !!pendingSceneSlug}
                 />

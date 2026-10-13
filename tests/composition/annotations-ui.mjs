@@ -78,10 +78,12 @@ try {
   await handles.waitFor()
   const center = page.locator('[data-annotation-handle="center"]')
   const cb = await center.boundingBox()
-  await page.mouse.move(cb.x + cb.width / 2, cb.y + cb.height / 2)
+  const ccx = cb.x + cb.width / 2
+  const ccy = cb.y + cb.height / 2
+  await page.mouse.move(ccx, ccy)
   await page.mouse.down()
-  await page.mouse.move(cb.x + 80, cb.y + 50, { steps: 6 })
-  await page.mouse.move(cb.x + 160, cb.y + 100, { steps: 6 })
+  await page.mouse.move(ccx + 80, ccy + 50, { steps: 6 })
+  await page.mouse.move(ccx + 160, ccy + 100, { steps: 6 })
   await page.mouse.up()
   await page.waitForTimeout(400)
   const moved = await save("moved")

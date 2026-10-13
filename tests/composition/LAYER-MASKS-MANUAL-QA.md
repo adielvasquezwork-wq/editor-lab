@@ -6,7 +6,7 @@ Scope: roadmap 1.4. **Cut content** is available only for effects inside a group
 
 1. Add a photo, then a Halftone above it. Select Halftone.
 2. In **Mask**, choose **Ellipse**. The halftone should appear only inside the ellipse; the photo outside stays untouched.
-3. Drag the center handle to move it, the X handle to rotate and widen, the Y handle to change height. Each drag is one Undo step.
+3. The mask shows a dashed box with round handles: drag the center dot to move it, a corner or an edge to resize (Shift keeps the ratio, Alt resizes from the center), and just outside a corner to rotate (Shift snaps to 15°). A linear gradient shows a line with its two ends instead. Each drag is one Undo step.
 4. Increase **Feather**; the edge softens without darkening.
 5. Toggle **Invert**, then **Enabled** off and on.
 

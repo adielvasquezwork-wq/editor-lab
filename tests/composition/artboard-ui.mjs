@@ -107,6 +107,7 @@ try {
   async function measure() {
     await page.waitForTimeout(500)
     const box = await artboard.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
     const h = await handle.boundingBox()
     const canvasSize = await canvas.evaluate((el) => [el.width, el.height])
     return {
@@ -124,6 +125,8 @@ try {
     .getByText("Threshold", { exact: true })
     .click()
   await artboard.waitFor()
+  const stage = await artboard.boundingBox()
+  await page.mouse.move(stage.x + stage.width / 2, stage.y + stage.height / 2)
   await handle.waitFor()
   const wide = await measure()
   assert.ok(Math.abs(wide.ratio - 0.75) < 0.01, `Artboard ratio ${wide.ratio}`)

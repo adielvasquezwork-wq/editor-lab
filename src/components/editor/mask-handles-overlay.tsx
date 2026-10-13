@@ -53,6 +53,7 @@ export function MaskHandlesOverlay({
       }
       panning={panning}
       framed
+      variant="mask"
       read={read}
       write={(updates) => useLayerStore.getState().setLayerMask(id, updates)}
       restore={(original) => useLayerStore.getState().setLayerMask(id, original)}

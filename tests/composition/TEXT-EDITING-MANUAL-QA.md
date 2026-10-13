@@ -10,7 +10,7 @@ Scope: roadmap 2.2 and 2.3. Text layers are edited in place on the canvas and ga
 
 ## Handles
 
-1. With a text layer selected and not editing, a dashed box marks the text. Drag the center handle to move it (Offset updates), the X handle to rotate, the Y handle to change Font Size. One drag is one Undo step; Esc cancels a drag.
+1. With a text layer selected and not editing, a box wraps the text for every anchor. Drag inside it to move (Offset updates), a corner to scale the Font Size uniformly (Alt scales from the center), and just outside a corner to rotate around the box center (Shift snaps to 15°). One drag is one Undo step; Esc cancels a drag.
 2. Anchor still works: change it in the panel and the handles follow the new anchor point.
 
 ## Typography

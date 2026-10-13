@@ -4,7 +4,7 @@ Scope: roadmap 6.3, part 2. A decorative effect layer that draws instrument-styl
 
 ## Target
 
-1. Add a photo, then **Annotations**. Drag the target's center handle onto a point of interest; drag the outer handle to resize the rings. Each drag is one Undo step.
+1. Add a photo, then **Annotations**. Drag inside the target's box onto a point of interest; drag a corner to resize the rings (the target stays square and upright). Each drag is one Undo step.
 2. With **Placement → Edges**, enable **Snap to Strongest Edge**: the target jumps to the most contrasty spot of the image and follows it on video.
 3. Turn **Target** off: only the scattered elements remain.
 

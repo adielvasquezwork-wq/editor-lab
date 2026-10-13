@@ -4,10 +4,15 @@ import { getDocumentSize } from "@/lib/editor/composition"
 import { normalizeTextFontWeight, resolveTextFontFamily } from "@/lib/editor/text-fonts"
 import {
   offsetFromPivotUnits,
+  textAnchorPlacement,
   textFontSize,
   textPivotUnits,
 } from "@/lib/editor/text-geometry"
-import { measureTextBlock, resolveLineHeight } from "@/renderer/text-layout"
+import {
+  measureTextBlock,
+  resolveLineHeight,
+  resolveTextAlign,
+} from "@/renderer/text-layout"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { canEditTextLayer, useTextEditStore } from "@/store/text-edit-store"
@@ -45,6 +50,24 @@ function measure(params: LayerParameterValues, logical: Size): [number, number] 
   return [Math.max(0.02, block.width / shorter), Math.max(0.02, block.height / shorter)]
 }
 
+function blockOffset(
+  params: LayerParameterValues,
+  size: [number, number]
+): [number, number] {
+  const placement = textAnchorPlacement(params.anchor)
+  const align = resolveTextAlign(params.align)
+  const horizontal = align === "auto" ? placement.horizontal : align
+  return [
+    horizontal === "left" ? size[0] / 2 : horizontal === "right" ? -size[0] / 2 : 0,
+    placement.vertical === "top" ? size[1] / 2 : placement.vertical === "bottom" ? -size[1] / 2 : 0,
+  ]
+}
+
+function rotate([x, y]: [number, number], degrees: number): [number, number] {
+  const a = (degrees * Math.PI) / 180
+  return [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]
+}
+
 export function TextHandlesOverlay({
   panning,
   disabled,
@@ -63,11 +86,13 @@ export function TextHandlesOverlay({
   )
   if (!layer || disabled || editing === layer.id) return null
   const id = layer.id
-  const geometryOf = (params: LayerParameterValues): Geometry => ({
-    center: textPivotUnits(params, logical),
-    size: measure(params, logical),
-    rotation: typeof params.rotation === "number" ? params.rotation : 0,
-  })
+  const geometryOf = (params: LayerParameterValues): Geometry => {
+    const size = measure(params, logical)
+    const rotation = typeof params.rotation === "number" ? params.rotation : 0
+    const [px, py] = textPivotUnits(params, logical)
+    const [ox, oy] = rotate(blockOffset(params, size), rotation)
+    return { center: [px + ox, py + oy], size, rotation }
+  }
   const read = () =>
     geometryOf(
       useLayerStore.getState().layers.find((l) => l.id === id)?.params ?? layer.params
@@ -75,20 +100,30 @@ export function TextHandlesOverlay({
   const write = (updates: Partial<Geometry>) => {
     const store = useLayerStore.getState()
     const params = store.layers.find((l) => l.id === id)?.params ?? layer.params
-    if (updates.center)
-      store.updateLayerParam(id, "offset", offsetFromPivotUnits(params, logical, updates.center))
-    if (updates.rotation !== undefined) store.updateLayerParam(id, "rotation", updates.rotation)
+    const current = geometryOf(params)
+    const target = { ...current, ...updates }
+    let fontSize = textFontSize(params)
     if (updates.size) {
-      const shorter = Math.min(logical.width, logical.height)
-      const current = measure(params, logical)
-      const ratio = updates.size[1] / Math.max(1e-6, current[1])
-      const next = Math.round(Math.min(600, Math.max(8, textFontSize(params) * ratio)))
-      if (next !== textFontSize(params) && Number.isFinite(shorter))
+      const ratio = target.size[1] / Math.max(1e-6, current.size[1])
+      const next = Math.round(Math.min(600, Math.max(8, fontSize * ratio)))
+      if (next !== fontSize) {
         store.updateLayerParam(id, "fontSize", next)
+        fontSize = next
+      }
     }
+    if (updates.rotation !== undefined && updates.rotation !== current.rotation)
+      store.updateLayerParam(id, "rotation", updates.rotation)
+    const next = { ...params, fontSize, rotation: target.rotation }
+    const [ox, oy] = rotate(blockOffset(next, measure(next, logical)), target.rotation)
+    store.updateLayerParam(
+      id,
+      "offset",
+      offsetFromPivotUnits(next, logical, [target.center[0] - ox, target.center[1] - oy])
+    )
   }
   return (
     <GeometryHandles
+      aspect="locked"
       key={id}
       dataPrefix="text"
       label="Text handles"
@@ -97,15 +132,7 @@ export function TextHandlesOverlay({
       panning={panning}
       read={read}
       write={write}
-      restore={(original) => {
-        const store = useLayerStore.getState()
-        const params = store.layers.find((l) => l.id === id)?.params ?? layer.params
-        store.updateLayerParam(id, "offset", offsetFromPivotUnits(params, logical, original.center))
-        store.updateLayerParam(id, "rotation", original.rotation)
-        const ratio = original.size[1] / Math.max(1e-6, measure(params, logical)[1])
-        const size = Math.round(Math.min(600, Math.max(8, textFontSize(params) * ratio)))
-        if (size !== textFontSize(params)) store.updateLayerParam(id, "fontSize", size)
-      }}
+      restore={write}
     />
   )
 }

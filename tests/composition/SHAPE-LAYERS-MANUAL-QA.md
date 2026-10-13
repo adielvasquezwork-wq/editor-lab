@@ -9,7 +9,7 @@ With the dev server running: `bun tests/composition/shape-layers-ui.mjs` (`SHADE
 ## Basics
 
 1. Add a photo. In the layer picker, add **Shape** (sources row, star icon). A red ellipse appears centered.
-2. Drag the center handle to move it, the X handle to rotate and widen, the Y handle for height. Each drag is one Undo step; Esc cancels a drag.
+2. Drag inside the box to move it (Shift locks the axis), a corner or an edge to resize (Shift keeps the ratio, Alt resizes from the center), and just outside a corner to rotate (Shift snaps to 15°). The size in document pixels shows under the box. Each drag is one Undo step; Esc cancels a drag.
 3. **Shape**: Ellipse, Rectangle (Corner Radius), Triangle, Polygon (Sides), Star (Points, Inner Radius), Ring (Thickness), Blades (Blades, Twist, Blade Width, Hub). Only the relevant controls show.
 4. **Color** picks the fill. **Outline** above 0 draws only the edge. **Softness** feathers the edge; at 0 the edge is antialiased.
 
