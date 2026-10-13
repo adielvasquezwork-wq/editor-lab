@@ -201,7 +201,7 @@ function propertyColor(definition: ParameterDefinition): string {
 
   return definition.type === "color" || definition.type === "text"
     ? "#FF8CAB"
-    : "#B697FF"
+    : "#FF4D00"
 }
 
 function buildTimelineProperties(
@@ -1449,7 +1449,7 @@ export function EditorTimelineOverlay() {
                                   {audioLink ? (
                                     <span
                                       aria-label="Driven by audio"
-                                      className="inline-flex shrink-0 text-[rgb(182_151_255)] [&_svg]:h-2.5 [&_svg]:w-2.5"
+                                      className="inline-flex shrink-0 text-[var(--ds-color-accent)] [&_svg]:h-2.5 [&_svg]:w-2.5"
                                       role="img"
                                       title="Driven by audio"
                                     >

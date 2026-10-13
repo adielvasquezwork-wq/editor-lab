@@ -61,7 +61,7 @@ function BandLevelBar({ bandId }: { bandId: AudioBandId }) {
   return (
     <span
       aria-hidden="true"
-      className="absolute inset-x-1 bottom-1 origin-bottom rounded-[2px] bg-[rgb(182_151_255_/_0.35)]"
+      className="absolute inset-x-1 bottom-1 origin-bottom rounded-[2px] bg-[color-mix(in_srgb,var(--ds-color-accent)_35%,transparent)]"
       ref={ref}
       style={{ height: "28px", transform: "scaleY(0)" }}
     />
@@ -131,7 +131,7 @@ function AudioLinkTrigger({
         }
         className={cn(
           "inline-flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] text-[var(--ds-color-text-muted)] transition-[color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-active)] hover:text-[var(--ds-color-text-secondary)] data-[popup-open]:bg-[var(--ds-color-surface-active)] [&_svg]:h-3 [&_svg]:w-3",
-          link && "text-[rgb(182_151_255)]"
+          link && "text-[var(--ds-color-accent)]"
         )}
         onPointerDown={(event) => {
           event.stopPropagation()
@@ -166,7 +166,7 @@ function AudioLinkTrigger({
                       className={cn(
                         "relative flex h-11 cursor-pointer flex-col items-center justify-end gap-1 overflow-hidden rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-1 pb-1 transition-[border-color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)]",
                         selected &&
-                          "border-[rgb(182_151_255_/_0.6)] bg-[rgb(182_151_255_/_0.14)]"
+                          "border-[color-mix(in_srgb,var(--ds-color-accent)_60%,transparent)] bg-[var(--ds-color-accent-soft)]"
                       )}
                       key={bandId}
                       onClick={() => {
@@ -219,7 +219,7 @@ function AudioLinkTrigger({
                               className={cn(
                                 "flex h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-icon)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] transition-[border-color,background-color] duration-160 ease-[var(--ease-out-cubic)] hover:border-[var(--ds-border-hover)]",
                                 selected &&
-                                  "border-[rgb(182_151_255_/_0.6)] bg-[rgb(182_151_255_/_0.14)]"
+                                  "border-[color-mix(in_srgb,var(--ds-color-accent)_60%,transparent)] bg-[var(--ds-color-accent-soft)]"
                               )}
                               key={option.value}
                               onClick={() => {

@@ -551,10 +551,10 @@ export function EditorCanvasViewport() {
 
       {exportingPreview ? (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-6">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] px-3 py-1.5 backdrop-blur-[28px]">
+          <div className="inline-flex items-center gap-2 rounded-full border border-[var(--skin-popup-border)] bg-[var(--skin-popup)] px-3 py-1.5 shadow-[var(--ds-shadow-pill-dark)] backdrop-blur-[28px]">
             <span
               aria-hidden="true"
-              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[rgb(182_151_255)]"
+              className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-[var(--ds-color-accent)]"
             />
             <span className="font-[var(--ds-font-mono)] text-[11px] leading-4 text-[var(--ds-color-text-secondary)]">
               Exporting — keep this tab open

@@ -65,11 +65,11 @@ export function AudioEnvelopeBackdrop({
       preserveAspectRatio="none"
       viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
     >
-      <path d={path} fill="rgb(182 151 255 / 0.10)" />
+      <path d={path} fill="color-mix(in srgb, var(--ds-color-accent) 10%, transparent)" />
       <path
         d={path}
         fill="none"
-        stroke="rgb(196 172 255 / 0.28)"
+        stroke="color-mix(in srgb, var(--ds-color-accent) 28%, transparent)"
         strokeWidth="1"
         vectorEffect="non-scaling-stroke"
       />

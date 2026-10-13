@@ -64,7 +64,7 @@ function BandMeter({ bandId }: { bandId: AudioBandId }) {
       </Typography>
       <div className="relative h-1.5 flex-1 overflow-hidden rounded-full bg-white/8">
         <div
-          className="absolute inset-0 origin-left rounded-full bg-[rgb(182_151_255)]"
+          className="absolute inset-0 origin-left rounded-full bg-[var(--ds-color-accent)]"
           ref={fillRef}
           style={{ transform: "scaleX(0)" }}
         />
