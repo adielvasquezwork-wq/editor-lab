@@ -61,6 +61,7 @@ export async function createWebGPURenderer(
       }
 
       pipeline.updateLogicalSize(frame.logicalSize)
+      pipeline.updateTimelineDuration(frame.clock.duration)
       pipeline.syncLayers(reverseComposition(frame.layers))
       return pipeline.render(frame.clock.time, frame.clock.delta)
     },

@@ -50,6 +50,7 @@ import {
 import { useAssetStore } from "@/store/asset-store"
 import { useCanvasHandlesStore } from "@/store/canvas-handles-store"
 import { useCellPaintStore } from "@/store/cell-paint-store"
+import { GradientPointsOverlay } from "@/components/editor/gradient-points-overlay"
 import { LayoutGridOverlay } from "@/components/editor/layout-grid-overlay"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -441,6 +442,10 @@ export function EditorCanvasViewport() {
                   disabled={exportingPreview || !isReady || !!pendingSceneSlug}
                 />
                 <AnnotationHandlesOverlay
+                  panning={isSpacePressed}
+                  disabled={exportingPreview || !isReady || !!pendingSceneSlug}
+                />
+                <GradientPointsOverlay
                   panning={isSpacePressed}
                   disabled={exportingPreview || !isReady || !!pendingSceneSlug}
                 />

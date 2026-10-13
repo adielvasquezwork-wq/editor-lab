@@ -3,6 +3,12 @@ import { useLayerStore } from "@/store/layer-store"
 
 const HANDLE_PARAMS: Partial<Record<string, ReadonlySet<string>>> = {
   annotations: new Set(["targetCenter", "targetSize"]),
+  gradient: new Set(
+    [1, 2, 3, 4, 5].flatMap((point) => [
+      `point${point}Position`,
+      `point${point}Weight`,
+    ])
+  ),
   model: new Set(["elevation", "location", "orbit", "rotation", "scale", "shift"]),
   shape: new Set(["center", "rotation", "size"]),
   text: new Set(["fontSize", "offset", "rotation"]),

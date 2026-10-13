@@ -226,6 +226,10 @@ export class PassNode {
     // Default pass has no logical-size-dependent uniforms.
   }
 
+  updateTimelineDuration(_duration: number): boolean {
+    return false
+  }
+
   needsContinuousRender(): boolean {
     return false
   }
