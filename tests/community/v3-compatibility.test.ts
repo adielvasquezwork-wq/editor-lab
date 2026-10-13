@@ -408,8 +408,8 @@ describe("community audio reactivity", () => {
       expect.anything()
     )
     expect(audio).toEqual({
-      envelopes: computeEnvelopeSet(spectrogram, project.audio.bands),
-      links: project.audio.links,
+      envelopes: computeEnvelopeSet(spectrogram, project.audioSnapshot.bands),
+      links: project.audioSnapshot.links,
       offsetSeconds: 0.5,
     })
     const render = (time: number) =>
@@ -425,6 +425,20 @@ describe("community audio reactivity", () => {
     expect(render(-0.5).layers).not.toEqual(render(0.4).layers)
   })
 
+  test("saved audio settings can pass through project rendering without masquerading as envelopes", () => {
+    const project = audioProject()
+    const frame = buildRendererFrame({
+      ...project,
+      delta: 0,
+      outputSize: project.composition,
+      pixelRatio: 1,
+      viewportSize: project.composition,
+    })
+    expect(frame.layers).toHaveLength(1)
+    expect(frame.layers[0]).toHaveProperty("layer.opacity", 1)
+    expect(project.audioSnapshot.links).toHaveLength(1)
+  })
+
   test("skips analysis without active links and tolerates missing or broken media", async () => {
     const analyze = spyOn(analysis, "analyzeAudioSource").mockRejectedValue(
       new Error("404")
@@ -436,7 +450,7 @@ describe("community audio reactivity", () => {
     ).toBeNull()
     expect(
       await buildViewerAudio(
-        { ...project, audio: { ...project.audio, links: [] } },
+        { ...project, audioSnapshot: { ...project.audioSnapshot, links: [] } },
         signal
       )
     ).toBeNull()

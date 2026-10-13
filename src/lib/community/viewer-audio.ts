@@ -8,7 +8,7 @@ export async function buildViewerAudio(
   project: ViewerProjectState,
   signal: AbortSignal
 ): Promise<AudioModulationInput | null> {
-  const { source, links, bands, offsetSeconds } = project.audio
+  const { source, links, bands, offsetSeconds } = project.audioSnapshot
   if (!(source && links.some((link) => link.enabled))) return null
 
   const assetId =

@@ -674,7 +674,8 @@ export function applyLabProjectFile(
 }
 
 export interface ViewerProjectState {
-  audio: EditorAudioSnapshot
+  /** Saved settings; renderer frame audio requires analyzed envelopes instead. */
+  audioSnapshot: EditorAudioSnapshot
   assets: EditorAsset[]
   composition: Size
   layers: EditorLayer[]
@@ -696,7 +697,7 @@ export function buildViewerProjectState(
 
   return {
     assets,
-    audio: normalizeProjectAudio(projectFile.audio),
+    audioSnapshot: normalizeProjectAudio(projectFile.audio),
     composition: projectFile.composition,
     layers,
     sceneConfig:
