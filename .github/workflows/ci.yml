@@ -45,6 +45,9 @@ jobs:
       - name: Lint app
         run: bun run lint
 
+      - name: Community compatibility tests
+        run: bun test tests/community
+
       - name: Type check app
         run: bun run typecheck:tsc
 

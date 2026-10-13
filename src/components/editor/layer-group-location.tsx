@@ -1,5 +1,6 @@
 "use client"
 
+import { isLayerGroup } from "@/renderer/layer-hierarchy"
 import { Select } from "@/components/ui/select"
 import { Typography } from "@/components/ui/typography"
 import { moveLayerToGroup } from "@/lib/editor/layer-groups"
@@ -9,9 +10,9 @@ export function LayerGroupLocation({ layerId }: { layerId: string }) {
   const layers = useLayerStore((state) => state.layers)
   const moveLayer = useLayerStore((state) => state.moveLayer)
   const layer = layers.find((entry) => entry.id === layerId)
-  if (!(layer && layers.some((entry) => entry.kind === "group"))) return null
+  if (!(layer && layers.some((entry) => isLayerGroup(entry)))) return null
   const groups = layers.filter(
-    (entry) => entry.kind === "group" && entry.id !== layerId
+    (entry) => isLayerGroup(entry) && entry.id !== layerId
   )
   const paths = new Map<string, string>()
   for (const group of groups)

@@ -156,9 +156,10 @@ export function buildRendererFrame(
             ? evaluation.properties.saturation
             : layer.saturation,
         visible:
-          typeof evaluation?.properties.visible === "boolean"
+          !layer.unavailableLayer &&
+          (typeof evaluation?.properties.visible === "boolean"
             ? evaluation.properties.visible
-            : layer.visible,
+            : layer.visible),
       },
       params,
     }

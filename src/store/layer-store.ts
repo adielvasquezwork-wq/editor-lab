@@ -20,7 +20,7 @@ import {
   getParameterDefinition,
 } from "@/lib/editor/parameter-schema"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
-import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { isLayerGroup, validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { useAudioStore } from "@/store/audio-store"
 import { meshGradientPresetParams, shuffleMeshGradient } from "@/lib/editor/mesh-gradient"
 import { useEditorStore } from "@/store/editor-store"
@@ -267,7 +267,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         (layer) => layer.id === state.selectedLayerId
       )
       let index = insertIndex
-      if (index === undefined && selected?.kind === "group") {
+      if (index === undefined && selected && isLayerGroup(selected)) {
         nextLayer.parentId = selected.id
         index = state.layers.indexOf(selected) + 1
         layers[state.layers.indexOf(selected)] = { ...selected, expanded: true }
@@ -406,7 +406,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
 
   ungroupLayer: (id) => {
     const group = get().layers.find(
-      (layer) => layer.id === id && layer.kind === "group"
+      (layer) => layer.id === id && isLayerGroup(layer)
     )
     if (!group || group.locked) return
     const children = get()

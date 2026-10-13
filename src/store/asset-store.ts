@@ -7,6 +7,7 @@ import {
   inferFileAssetKind,
   isAudioFileName,
   isSvgMediaSource,
+  normalizeAssetMimeType,
 } from "@/lib/editor/media-file"
 import type { AssetKind, EditorAsset } from "@/types/editor"
 import {
@@ -60,27 +61,13 @@ const ACCEPTED_TYPES = new Set([
 
 const MAX_SIZE_BYTES = 100 * 1024 * 1024
 
-function fallbackMimeType(kind: AssetKind, fileName: string): string {
-  if (kind === "environment") {
-    return "image/vnd.radiance"
-  }
-
-  if (kind === "model") {
-    return fileName.toLowerCase().endsWith(".gltf")
-      ? "model/gltf+json"
-      : "model/gltf-binary"
-  }
-
-  return ""
-}
-
 function validateFile(file: File, requested?: AssetKind): AssetKind {
   const inferred = inferFileAssetKind(file)
   const kind =
     requested === "model" && inferred === "image" && isSvgMediaSource({ fileName: file.name, mimeType: file.type })
       ? "model"
       : inferred
-  const mimeType = file.type.toLowerCase()
+  const mimeType = normalizeAssetMimeType({ fileName: file.name, mimeType: file.type })
   const fileName = file.name.toLowerCase()
 
   if (
@@ -198,7 +185,7 @@ export const useAssetStore = create<AssetStore>((set, get) => ({
       fileName: file.name,
       id: crypto.randomUUID(),
       kind,
-      mimeType: file.type || fallbackMimeType(kind, file.name),
+      mimeType: normalizeAssetMimeType({ fileName: file.name, mimeType: file.type }),
       sizeBytes: file.size,
       source: "local" as const,
       status: "ready" as const,

@@ -1,4 +1,5 @@
 "use client"
+import { isLayerGroup } from "@/renderer/layer-hierarchy"
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -200,7 +201,7 @@ const LayerListItem = memo(function LayerListItem({
   const cancelRename = useRef(false)
   const renameLayer = useLayerStore((state) => state.renameLayer)
   const setExpanded = useLayerStore((state) => state.setLayerExpanded)
-  const isGroup = layer.kind === "group"
+  const isGroup = isLayerGroup(layer)
 
   function startRename() {
     cancelRename.current = false
@@ -710,7 +711,7 @@ export function LayerSidebar() {
               onSelectLayer={handleSelectLayer}
               onSetLayerVisibility={handleSetLayerVisibility}
             >
-              {layer.kind === "group" && layer.expanded
+              {isLayerGroup(layer) && layer.expanded
                 ? renderLayerTree(layer.id, frozen)
                 : null}
             </LayerListItem>

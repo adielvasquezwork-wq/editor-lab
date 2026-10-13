@@ -4,9 +4,18 @@ import {
 } from "./composition-tree"
 
 export interface HierarchyLayer {
+  unavailableLayer?: Record<string, unknown>
   id: string
   kind: string
   parentId?: string | null | undefined
+}
+
+/** Inert placeholders retain the structural kind of their original layer. */
+export function isLayerGroup(layer: HierarchyLayer): boolean {
+  return (
+    layer.kind === "group" &&
+    (!layer.unavailableLayer || layer.unavailableLayer.kind === "group")
+  )
 }
 
 /** A flat, top-first preorder keeps subtrees contiguous for selection and moves. */
@@ -23,7 +32,7 @@ export function validateLayerHierarchy(
     if (parent !== null && ancestors.at(-1) !== parent) {
       throw new Error("Group children must follow their parent in layer order.")
     }
-    if (layer.kind === "group") {
+    if (isLayerGroup(layer)) {
       if (ancestors.length >= MAX_COMPOSITION_GROUP_DEPTH) {
         throw new Error(
           `Groups support at most ${MAX_COMPOSITION_GROUP_DEPTH} levels.`
@@ -53,7 +62,7 @@ export function buildCompositionTree<
       continue
     }
     const target = layer.parentId ? children.get(layer.parentId)! : root
-    if (layer.kind === "group") {
+    if (isLayerGroup(layer)) {
       const nested: CompositionNode<Leaf>[] = []
       target.push({
         id: layer.id,

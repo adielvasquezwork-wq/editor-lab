@@ -1,4 +1,4 @@
-import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { isLayerGroup, validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import type { EditorLayer } from "@/types/editor"
 
 export type LayerDropTarget = {
@@ -22,7 +22,7 @@ export function dropLayer(
   const parent = layers.find((layer) => layer.id === parentId)
   if (
     parentId !== null &&
-    (!parent || parent.kind !== "group" || parent.locked)
+    (!(parent && isLayerGroup(parent)) || parent.locked)
   )
     return null
   const ids = new Set(contents.map((layer) => layer.id))
@@ -86,7 +86,7 @@ export function visibleLayerRows(
       collapsed.add(layer.id)
       return false
     }
-    if (layer.kind === "group" && !layer.expanded) collapsed.add(layer.id)
+    if (isLayerGroup(layer) && !layer.expanded) collapsed.add(layer.id)
     return true
   })
 }
@@ -174,7 +174,7 @@ export function moveLayerToGroup(
   if (
     !source ||
     source.locked ||
-    (parentId !== null && (!parent || parent.kind !== "group" || parent.locked))
+    (parentId !== null && (!(parent && isLayerGroup(parent)) || parent.locked))
   )
     return null
   if ((source.parentId ?? null) === parentId) return layers

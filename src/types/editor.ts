@@ -328,6 +328,9 @@ export const DEFAULT_MASK_CONFIG: MaskConfig = {
 }
 
 export interface BaseLayer {
+  /** Original data for a layer unavailable in this version; never rendered. */
+  unavailableLayer?: Record<string, unknown>
+
   parentId?: string | null
   assetId: string | null
   depthAssetId?: string | null
