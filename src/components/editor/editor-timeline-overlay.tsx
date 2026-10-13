@@ -1718,7 +1718,7 @@ export function EditorTimelineOverlay() {
                     {marqueeStyle ? (
                       <div
                         aria-hidden="true"
-                        className="pointer-events-none absolute z-2 rounded-[8px] border border-[#57A4FF] bg-[#57A4FF]/18 shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.06)]"
+                        className="pointer-events-none absolute z-2 rounded-[8px] border border-[var(--ds-color-accent)] bg-[var(--ds-color-accent-soft)] shadow-[inset_0_0_0_1px_rgb(255_255_255_/_0.06)]"
                         style={marqueeStyle}
                       />
                     ) : null}

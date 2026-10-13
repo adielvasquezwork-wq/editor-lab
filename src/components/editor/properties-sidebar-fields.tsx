@@ -104,7 +104,7 @@ function TimelineKeyframeButton({
           aria-label={`Create keyframe for ${control.binding.label}`}
           className={cn(
             "h-6 w-6 [&_svg]:h-3 [&_svg]:w-3",
-            control.hasTrack && "text-[rgb(200_220_255_/_0.92)]"
+            control.hasTrack && "text-[var(--ds-color-accent)]"
           )}
           disabled={!control.timelinePanelOpen}
           onClick={() =>
