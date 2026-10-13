@@ -57,9 +57,10 @@ function blockOffset(
   const placement = textAnchorPlacement(params.anchor)
   const align = resolveTextAlign(params.align)
   const horizontal = align === "auto" ? placement.horizontal : align
+  const side = { bottom: -1, center: 0, left: 1, right: -1, top: 1 } as const
   return [
-    horizontal === "left" ? size[0] / 2 : horizontal === "right" ? -size[0] / 2 : 0,
-    placement.vertical === "top" ? size[1] / 2 : placement.vertical === "bottom" ? -size[1] / 2 : 0,
+    (side[horizontal] * size[0]) / 2,
+    (side[placement.vertical] * size[1]) / 2,
   ]
 }
 

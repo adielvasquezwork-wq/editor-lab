@@ -7,6 +7,7 @@ import {
   useState,
 } from "react"
 import { getCompositionFrame, getDocumentSize } from "@/lib/editor/composition"
+import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { layoutGridSnapLines, resolveLayoutGrid } from "@/lib/editor/layout-grid"
 import { useEditorStore } from "@/store/editor-store"
 
@@ -31,6 +32,13 @@ type Drag = {
 } & DragTarget
 
 const SNAP_DISTANCE_PX = 8
+const NUDGE_LARGE_PX = 10
+const NUDGE_KEYS: Partial<Record<string, Point>> = {
+  ArrowDown: [0, 1],
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+}
 const ROTATE_STEP = 15
 const MIN_SIZE = 0.01
 const MAX_SIZE = 8
@@ -109,6 +117,7 @@ export function GeometryHandles({
   aspect = "free",
   rotatable = true,
   variant = "object",
+  nudge = true,
 }: {
   geometry: Geometry
   outline: GeometryOutline
@@ -122,6 +131,7 @@ export function GeometryHandles({
   aspect?: "free" | "locked"
   rotatable?: boolean
   variant?: "object" | "mask"
+  nudge?: boolean
 }) {
   const host = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
@@ -195,6 +205,35 @@ export function GeometryHandles({
       window.removeEventListener("keydown", key)
     }
   }, [finish])
+
+  const nudgeScale = useRef(1)
+  nudgeScale.current = box.width / Math.max(1, documentSize.width) / shorter
+  useEffect(() => {
+    if (!nudge) return
+    const onKey = (event: KeyboardEvent) => {
+      const step = NUDGE_KEYS[event.key]
+      if (!step || event.metaKey || event.ctrlKey || event.altKey) return
+      if (drag.current || isEditableTarget(event.target)) return
+      const element = host.current
+      if (!element?.checkVisibility()) return
+      if (!element.closest("[data-canvas-viewport]")?.matches(":hover")) return
+      event.preventDefault()
+      event.stopImmediatePropagation()
+      const distance = (event.shiftKey ? NUDGE_LARGE_PX : 1) * nudgeScale.current
+      const current = callbacks.current.read()
+      const store = useEditorStore.getState()
+      store.beginInteractiveEdit()
+      callbacks.current.write({
+        center: [
+          current.center[0] + step[0] * distance,
+          current.center[1] + step[1] * distance,
+        ],
+      })
+      store.endInteractiveEdit()
+    }
+    window.addEventListener("keydown", onKey, { capture: true })
+    return () => window.removeEventListener("keydown", onKey, { capture: true })
+  }, [nudge])
 
   const angle = (geometry.rotation * Math.PI) / 180
   const u: Point = [Math.cos(angle), Math.sin(angle)]
@@ -337,11 +376,9 @@ export function GeometryHandles({
       height = Math.max(MIN_SIZE, height)
       if (locked || event.shiftKey) {
         const ratio = o.size[1] / Math.max(1e-6, o.size[0])
-        const k = sx && sy
-          ? Math.max(width / o.size[0], height / o.size[1])
-          : sx
-            ? width / o.size[0]
-            : height / o.size[1]
+        let k = height / o.size[1]
+        if (sx && sy) k = Math.max(width / o.size[0], height / o.size[1])
+        else if (sx) k = width / o.size[0]
         width = o.size[0] * k
         height = width * ratio
       }

@@ -8,6 +8,7 @@ import {
 } from "./geometry-handles"
 
 const GEOMETRIC = ["linear", "radial", "ellipse", "rectangle"]
+const LAYERS_WITH_OWN_HANDLES = new Set(["annotations", "shape", "text"])
 
 function selectMaskLayer(state: {
   layers: EditorLayer[]
@@ -54,6 +55,7 @@ export function MaskHandlesOverlay({
       panning={panning}
       framed
       variant="mask"
+      nudge={!LAYERS_WITH_OWN_HANDLES.has(layer.type)}
       read={read}
       write={(updates) => useLayerStore.getState().setLayerMask(id, updates)}
       restore={(original) => useLayerStore.getState().setLayerMask(id, original)}
