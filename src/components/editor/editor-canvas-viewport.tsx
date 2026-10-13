@@ -48,6 +48,7 @@ import {
   getWheelZoomFactor,
 } from "@/lib/editor/view-transform"
 import { useAssetStore } from "@/store/asset-store"
+import { useCanvasHandlesStore } from "@/store/canvas-handles-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -65,6 +66,7 @@ export function EditorCanvasViewport() {
     () => false
   )
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
+  const handlesPeeking = useCanvasHandlesStore((state) => state.peeking)
   const exitImmersiveCanvas = useEditorStore(
     (state) => state.exitImmersiveCanvas
   )
@@ -357,6 +359,7 @@ export function EditorCanvasViewport() {
         ref={viewportRef}
         className="absolute inset-0 overflow-hidden"
         data-canvas-viewport="true"
+        data-handles-peek={handlesPeeking ? "true" : undefined}
         role="application"
         aria-label="Canvas viewport"
         style={{

@@ -4,6 +4,7 @@ import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
+import { peekCanvasHandles } from "@/store/canvas-handles-store"
 import { useCellPaintStore } from "@/store/cell-paint-store"
 import {
   DEFAULT_LAYER_MASK,
@@ -89,6 +90,10 @@ export function LayerMaskSection({
       : label
   const isEffect = layerKind === "effect"
   const geometric = GEOMETRIC.includes(shape)
+  const startGeometryInteraction = () => {
+    peekCanvasHandles()
+    onInteractionStart?.()
+  }
   const row = "grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
   const chooseShape = (next: LayerMaskShape) => {
     setLayerMask(
@@ -180,7 +185,7 @@ export function LayerMaskSection({
                 max={1}
                 step={0.005}
                 value={[current.center[0], -current.center[1]]}
-                onInteractionStart={onInteractionStart}
+                onInteractionStart={startGeometryInteraction}
                 onInteractionEnd={onInteractionEnd}
                 onValueChange={([x, y]) => setField("center", [x, -y])}
               />
@@ -190,7 +195,7 @@ export function LayerMaskSection({
                 max={3}
                 step={0.01}
                 value={current.size[0]}
-                onInteractionStart={onInteractionStart}
+                onInteractionStart={startGeometryInteraction}
                 onValueChange={(v) => setField("size", [v, current.size[1]])}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
@@ -201,7 +206,7 @@ export function LayerMaskSection({
                   max={3}
                   step={0.01}
                   value={current.size[1]}
-                  onInteractionStart={onInteractionStart}
+                  onInteractionStart={startGeometryInteraction}
                   onValueChange={(v) => setField("size", [current.size[0], v])}
                   onValueCommitted={() => onInteractionEnd?.()}
                 />
@@ -213,7 +218,7 @@ export function LayerMaskSection({
                 step={1}
                 value={current.rotation}
                 valueSuffix="°"
-                onInteractionStart={onInteractionStart}
+                onInteractionStart={startGeometryInteraction}
                 onValueChange={(v) => setField("rotation", v)}
                 onValueCommitted={() => onInteractionEnd?.()}
               />
@@ -224,7 +229,7 @@ export function LayerMaskSection({
                   max={0.25}
                   step={0.005}
                   value={current.feather}
-                  onInteractionStart={onInteractionStart}
+                  onInteractionStart={startGeometryInteraction}
                   onValueChange={(v) => setField("feather", v)}
                   onValueCommitted={() => onInteractionEnd?.()}
                 />

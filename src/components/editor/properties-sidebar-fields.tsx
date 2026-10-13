@@ -28,6 +28,10 @@ import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
 import { AxisFields } from "@/components/ui/axis-fields"
+import {
+  drivesCanvasHandles,
+  peekCanvasHandles,
+} from "@/store/canvas-handles-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import {
@@ -252,6 +256,10 @@ function ParameterFieldImpl({
     (state) =>
       state.layers.find((layer) => layer.id === layerId)?.params ?? null
   )
+  const startInteraction = () => {
+    if (drivesCanvasHandles(layerId, definition.key)) peekCanvasHandles()
+    onInteractionStart?.()
+  }
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const timelineControl: TimelineKeyframeControl | null = timelineBinding
     ? {
@@ -306,7 +314,7 @@ function ParameterFieldImpl({
               ? fontWeightControl.min
               : (definition.min ?? 0)
           }
-          onInteractionStart={onInteractionStart}
+          onInteractionStart={startInteraction}
           onValueChange={(nextValue) =>
             onChange(
               layerId,
@@ -436,7 +444,7 @@ function ParameterFieldImpl({
           )}
           <ColorPicker
             onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
+            onInteractionStart={startInteraction}
             onValueChange={(nextValue) =>
               onChange(layerId, definition.key, nextValue)
             }
@@ -459,7 +467,7 @@ function ParameterFieldImpl({
             max={definition.max}
             min={definition.min}
             onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
+            onInteractionStart={startInteraction}
             onValueChange={(next) =>
               onChange(layerId, definition.key, [next[0] ?? 0, next[1] ?? 0])
             }
@@ -479,7 +487,7 @@ function ParameterFieldImpl({
           max={definition.max ?? 1}
           min={definition.min ?? -1}
           onInteractionEnd={onInteractionEnd}
-          onInteractionStart={onInteractionStart}
+          onInteractionStart={startInteraction}
           onValueChange={(nextValue) =>
             onChange(layerId, definition.key, nextValue)
           }
@@ -501,7 +509,7 @@ function ParameterFieldImpl({
           max={definition.max}
           min={definition.min}
           onInteractionEnd={onInteractionEnd}
-          onInteractionStart={onInteractionStart}
+          onInteractionStart={startInteraction}
           onValueChange={(next) =>
             onChange(layerId, definition.key, [
               next[0] ?? 0,
