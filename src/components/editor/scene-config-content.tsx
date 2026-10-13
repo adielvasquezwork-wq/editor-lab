@@ -23,6 +23,11 @@ import type {
   SceneConfig,
 } from "@/types/editor"
 import { getDocumentSize } from "@/lib/editor/composition"
+import {
+  MAX_GRID_TRACKS,
+  resolveLayoutGrid,
+  updateLayoutGrid,
+} from "@/lib/editor/layout-grid"
 import { COMPOSITION_ASPECTS, DEFAULT_SCENE_CONFIG } from "@/types/editor"
 
 const ASPECT_LABELS: Partial<Record<string, string>> = {
@@ -92,6 +97,7 @@ export function SceneConfigContent() {
   const setComposition = useEditorStore((state) => state.setComposition)
   const outputSize = useEditorStore((state) => state.outputSize)
   const documentSize = getDocumentSize(sceneConfig, outputSize)
+  const grid = resolveLayoutGrid(sceneConfig)
 
   const handleUpdate = useCallback(
     <K extends keyof SceneConfig>(key: K, value: SceneConfig[K]) => {
@@ -195,6 +201,68 @@ export function SceneConfigContent() {
             value={String(renderScale)}
           />
         </Row>
+      </Section>
+
+      <Section title="Grid">
+        <Toggle
+          checked={grid.visible}
+          label="Show grid (Shift+G)"
+          onCheckedChange={(checked) => updateLayoutGrid({ visible: checked })}
+        />
+        <Row label="Columns">
+          <NumberInput
+            aria-label="Grid columns"
+            className={inputClassName}
+            max={MAX_GRID_TRACKS}
+            min={0}
+            onChange={(value) => updateLayoutGrid({ columns: Math.round(value) })}
+            step={1}
+            value={grid.columns}
+          />
+        </Row>
+        <Row label="Rows">
+          <NumberInput
+            aria-label="Grid rows"
+            className={inputClassName}
+            max={MAX_GRID_TRACKS}
+            min={0}
+            onChange={(value) => updateLayoutGrid({ rows: Math.round(value) })}
+            step={1}
+            value={grid.rows}
+          />
+        </Row>
+        <Row label="Gap">
+          <NumberInput
+            aria-label="Grid gap"
+            className={inputClassName}
+            min={0}
+            onChange={(value) => updateLayoutGrid({ gap: value })}
+            step={1}
+            value={grid.gap}
+          />
+        </Row>
+        <Row label="Margin">
+          <NumberInput
+            aria-label="Grid margin"
+            className={inputClassName}
+            min={0}
+            onChange={(value) => updateLayoutGrid({ margin: value })}
+            step={1}
+            value={grid.margin}
+          />
+        </Row>
+        <Slider
+          label="Opacity"
+          max={100}
+          min={0}
+          onValueChange={(value) => updateLayoutGrid({ opacity: value / 100 })}
+          step={1}
+          value={Math.round(grid.opacity * 100)}
+          valueSuffix="%"
+        />
+        <Typography tone="muted" variant="caption">
+          A guide in document pixels. It is never part of the render or the export.
+        </Typography>
       </Section>
 
       {/* Background */}

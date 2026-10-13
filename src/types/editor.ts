@@ -537,6 +537,25 @@ export interface SceneConfig {
   quantizeEnabled: boolean
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
+  grid?: LayoutGrid
+}
+
+export interface LayoutGrid {
+  visible: boolean
+  columns: number
+  rows: number
+  gap: number
+  margin: number
+  opacity: number
+}
+
+export const DEFAULT_LAYOUT_GRID: LayoutGrid = {
+  visible: false,
+  columns: 12,
+  rows: 0,
+  gap: 20,
+  margin: 40,
+  opacity: 0.06,
 }
 
 export const DEFAULT_SCENE_CONFIG: SceneConfig = {

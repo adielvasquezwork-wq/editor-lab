@@ -49,6 +49,7 @@ import {
 } from "@/lib/editor/view-transform"
 import { useAssetStore } from "@/store/asset-store"
 import { useCanvasHandlesStore } from "@/store/canvas-handles-store"
+import { LayoutGridOverlay } from "@/components/editor/layout-grid-overlay"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -416,6 +417,7 @@ export function EditorCanvasViewport() {
                 ref={canvasRef}
                 className="absolute inset-0 h-full w-full [image-rendering:pixelated]"
               />
+              <LayoutGridOverlay hidden={exportingPreview} />
               <CellPaintOverlay
                 panning={isSpacePressed}
                 disabled={exportingPreview || !isReady || !!pendingSceneSlug}

@@ -7,6 +7,7 @@ import {
   GearIcon,
   GlobeIcon,
   GitHubLogoIcon,
+  GridIcon,
   ResetIcon,
   SpeakerLoudIcon,
   SpeakerOffIcon,
@@ -41,6 +42,7 @@ import {
 } from "@/lib/editor/history"
 import { isRestoringAutosave } from "@/lib/editor/autosave/suppress"
 import { applyZoomAtPoint, getNextZoomStep } from "@/lib/editor/view-transform"
+import { toggleLayoutGrid } from "@/lib/editor/layout-grid"
 import {
   registerHistoryShortcuts,
   useAudioStore,
@@ -134,6 +136,7 @@ export function EditorTopBar({
   const sidebarView = useEditorStore((state) => state.sidebarView)
   const setSidebarView = useEditorStore((state) => state.setSidebarView)
   const zoom = useEditorStore((state) => state.zoom)
+  const gridVisible = useEditorStore((state) => state.sceneConfig.grid?.visible === true)
   const panOffset = useEditorStore((state) => state.panOffset)
   const hasMovedFloatingPanels = useEditorStore(
     (state) =>
@@ -571,6 +574,21 @@ export function EditorTopBar({
                 variant="default"
               >
                 <ZoomInIcon height={18} width={18} />
+              </IconButton>
+              <IconButton
+                aria-label={
+                  gridVisible
+                    ? "Hide layout grid (Shift+G)"
+                    : "Show layout grid (Shift+G)"
+                }
+                className="h-7 w-7"
+                onClick={() => toggleLayoutGrid()}
+                selected={gridVisible}
+                tooltipSide="bottom"
+                uiSound="none"
+                variant="default"
+              >
+                <GridIcon height={16} width={16} />
               </IconButton>
               <TopbarDivider className="mx-0.5" />
 

@@ -475,7 +475,13 @@ export function ModelGizmoOverlay({
         }
         return
       }
-      if (disabled || event.metaKey || event.ctrlKey || isEditableTarget(event.target))
+      if (
+        disabled ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        isEditableTarget(event.target)
+      )
         return
       const pointer = lastPointer.current
       if (event.altKey) {
