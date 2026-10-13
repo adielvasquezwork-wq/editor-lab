@@ -18,11 +18,22 @@ export async function buildViewerAudio(
   const asset = project.assets.find((entry) => entry.id === assetId)
   if (!asset) return null
 
+  signal.throwIfAborted()
+  const analysisSignal = AbortSignal.any([signal, AbortSignal.timeout(8_000)])
+  let onAbort: () => void = () => undefined
+  const cancelled = new Promise<never>((_resolve, reject) => {
+    onAbort = () => reject(analysisSignal.reason)
+    analysisSignal.addEventListener("abort", onAbort, { once: true })
+    if (analysisSignal.aborted) onAbort()
+  })
+
   try {
-    const spectrogram = await analyzeAudioSource(asset.url, {
-      // An unavailable audio file must not strand the viewer on its poster.
-      signal: AbortSignal.any([signal, AbortSignal.timeout(8_000)]),
-    })
+    // decodeAudioData cannot be interrupted. Stop waiting at the deadline even
+    // if decoding is still running; the signal also cancels fetch/worker work.
+    const spectrogram = await Promise.race([
+      analyzeAudioSource(asset.url, { signal: analysisSignal }),
+      cancelled,
+    ])
     return {
       envelopes: computeEnvelopeSet(spectrogram, bands),
       links,
@@ -31,5 +42,7 @@ export async function buildViewerAudio(
   } catch (error) {
     if (signal.aborted) throw error
     return null
+  } finally {
+    analysisSignal.removeEventListener("abort", onAbort)
   }
 }

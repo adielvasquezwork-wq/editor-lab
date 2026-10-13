@@ -1,5 +1,6 @@
 "use client"
 
+import { isLayerGroup } from "@/renderer/layer-hierarchy"
 import {
   type PointerEvent as ReactPointerEvent,
   useEffect,
@@ -43,7 +44,7 @@ function findTarget(
   let placement: LayerDropTarget["placement"] =
     y < rect.top + rect.height / 2 ? "before" : "after"
   if (
-    anchor.kind === "group" &&
+    isLayerGroup(anchor) &&
     x >= rect.left &&
     y > rect.top + rect.height * 0.25 &&
     y < rect.bottom - rect.height * 0.25

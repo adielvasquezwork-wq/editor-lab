@@ -5,7 +5,7 @@ import {
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
-import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { isLayerGroup, validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
@@ -530,7 +530,7 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   if (
     result.data.version < 7 &&
     result.data.layers.some((layer) =>
-      (layer.kind === "group" && !layer.unavailableLayer) || layer.parentId
+      isLayerGroup(layer) || layer.parentId
     )
   ) {
     throw new Error("Groups require project version 7 or later.")

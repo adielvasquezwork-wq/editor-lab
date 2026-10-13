@@ -12,6 +12,7 @@ import { computeEnvelopeSet } from "@/lib/editor/audio/envelope"
 import { analyzeSpectrogram } from "@/lib/editor/audio/spectrogram"
 import { getBlankProjectFile } from "@/lib/editor/blank-project"
 import { getLayerDefinitions } from "@/lib/editor/config/layer-registry"
+import { dropLayer, moveLayerToGroup } from "@/lib/editor/layer-groups"
 import { createLayer } from "@/lib/editor/layers"
 import { normalizeAssetMimeType } from "@/lib/editor/media-file"
 import {
@@ -23,6 +24,10 @@ import {
   parseLabProjectFileValue,
 } from "@/lib/editor/project-file"
 import { buildRendererFrame } from "@/renderer/contracts"
+import {
+  isLayerGroup,
+  validateLayerHierarchy,
+} from "@/renderer/layer-hierarchy"
 import { useAssetStore } from "@/store/asset-store"
 import { useLayerStore } from "@/store/layer-store"
 
@@ -286,6 +291,53 @@ describe("project compatibility", () => {
     expect(buildLabProjectFile().layers).toHaveLength(9)
   })
 
+  test.each([
+    false,
+    true,
+  ])("adding beside a selected unavailable leaf succeeds (nested=%s)", (nested) => {
+    const { raw, original } = unavailableProject()
+    const group = createLayer("group")
+    const file = parseLabProjectFileValue({
+      ...raw,
+      layers: nested
+        ? [group, { ...original, parentId: group.id }]
+        : raw.layers,
+    })
+    applyLabProjectFile(file, [])
+    const addedId = useLayerStore.getState().addLayer("gradient")
+    const layers = useLayerStore.getState().layers
+    const added = layers.find((layer) => layer.id === addedId)!
+    expect(added.parentId ?? null).toBe(nested ? group.id : null)
+    expect(added.parentId).not.toBe(original.id)
+    expect(
+      layers.find((layer) => layer.id === original.id)?.unavailableLayer
+    ).toBeDefined()
+    expect(() => validateLayerHierarchy(layers)).not.toThrow()
+  })
+
+  test("unavailable leaves cannot become group targets even after unlocking", () => {
+    const { parsed, known, original } = unavailableProject()
+    const layers = parsed.layers.map((layer) => ({ ...layer, locked: false }))
+    expect(isLayerGroup(layers[0]!)).toBe(false)
+    expect(moveLayerToGroup(layers, known.id, original.id)).toBeNull()
+    expect(
+      dropLayer(layers, known.id, { id: original.id, placement: "inside" })
+    ).toBeNull()
+    useLayerStore.getState().replaceState(layers, original.id, null)
+    useLayerStore.getState().ungroupLayer(original.id)
+    expect(useLayerStore.getState().layers).toEqual(layers)
+  })
+
+  test("normal groups still accept newly added children", () => {
+    const group = createLayer("group")
+    useLayerStore.getState().replaceState([group], group.id, null)
+    const addedId = useLayerStore.getState().addLayer("gradient")
+    expect(
+      useLayerStore.getState().layers.find((layer) => layer.id === addedId)
+        ?.parentId
+    ).toBe(group.id)
+  })
+
   test("drafts preserve unavailable layers; publish reports them before pruning", () => {
     const { raw, parsed } = unavailableProject()
     const draft = validateDraftPayload(JSON.stringify(raw))
@@ -458,14 +510,39 @@ describe("community audio reactivity", () => {
     expect(await buildViewerAudio(project, signal)).toBeNull()
   })
 
-  test("passes cancellation through instead of treating unmount as a media failure", async () => {
+  test("the deadline releases playback even when decoding ignores the signal", async () => {
+    const deadline = new AbortController()
+    spyOn(AbortSignal, "timeout").mockReturnValue(deadline.signal)
+    spyOn(analysis, "analyzeAudioSource").mockImplementation(
+      () => new Promise(() => undefined)
+    )
+    const pending = buildViewerAudio(
+      audioProject(),
+      new AbortController().signal
+    )
+    deadline.abort(new DOMException("Audio deadline", "TimeoutError"))
+    expect(await pending).toBeNull()
+  }, 500)
+
+  test("unmount releases the wait even when decoding ignores cancellation", async () => {
+    const controller = new AbortController()
+    spyOn(analysis, "analyzeAudioSource").mockImplementation(
+      () => new Promise(() => undefined)
+    )
+    const pending = buildViewerAudio(audioProject(), controller.signal)
+    controller.abort()
+    await expect(pending).rejects.toHaveProperty("name", "AbortError")
+  }, 500)
+
+  test("does not start analysis after unmount", async () => {
     const controller = new AbortController()
     controller.abort()
-    spyOn(analysis, "analyzeAudioSource").mockRejectedValue(
-      new DOMException("Aborted", "AbortError")
+    const analyze = spyOn(analysis, "analyzeAudioSource").mockImplementation(
+      () => new Promise(() => undefined)
     )
     await expect(
       buildViewerAudio(audioProject(), controller.signal)
-    ).rejects.toThrow("Aborted")
+    ).rejects.toHaveProperty("name", "AbortError")
+    expect(analyze).not.toHaveBeenCalled()
   })
 })
