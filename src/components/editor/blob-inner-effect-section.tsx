@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { Fragment, useMemo } from "react"
 import {
   INNER_EFFECT_NONE,
   isInnerEffectType,
@@ -8,6 +8,7 @@ import {
   serializeInnerEffectParams,
 } from "@/lib/blob-tracking/inner-effects"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { useLayerStore } from "@/store/layer-store"
 import type {
   LayerParameterValues,
   ParameterDefinition,
@@ -20,6 +21,10 @@ import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
+import {
+  EffectPaletteControls,
+  EffectStyleControls,
+} from "./effect-style-controls"
 import {
   isParamVisible,
   toBooleanValue,
@@ -62,12 +67,21 @@ export function BlobInnerEffectSection({
   )
 
   const handleChange = (key: string, value: ParameterValue) => {
+    const stored = useLayerStore
+      .getState()
+      .layers.find((layer) => layer.id === layerId)?.params.innerEffectParams
+    const current = parseInnerEffectParams(
+      innerType,
+      typeof stored === "string" ? stored : ""
+    )
     updateLayerParam(
       layerId,
       "innerEffectParams",
-      serializeInnerEffectParams({ ...innerValues, [key]: value })
+      serializeInnerEffectParams({ ...current, [key]: value })
     )
   }
+  const updateInnerParam = (_id: string, key: string, value: ParameterValue) =>
+    handleChange(key, value)
 
   return (
     <div className="flex flex-col gap-[10px] border-[var(--ds-border-divider)] border-l pl-3">
@@ -84,16 +98,36 @@ export function BlobInnerEffectSection({
         }
 
         return (
-          <InnerEffectField
-            definition={entry}
-            key={entry.key}
-            onChange={handleChange}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            value={innerValues[entry.key] ?? entry.defaultValue}
-          />
+          <Fragment key={entry.key}>
+            <InnerEffectField
+              definition={entry}
+              onChange={handleChange}
+              onInteractionEnd={onInteractionEnd}
+              onInteractionStart={onInteractionStart}
+              value={innerValues[entry.key] ?? entry.defaultValue}
+            />
+            <EffectPaletteControls
+              layerId={layerId}
+              layerType={innerType}
+              onInteractionEnd={onInteractionEnd}
+              onInteractionStart={onInteractionStart}
+              paramKey={entry.key}
+              updateLayerParam={updateInnerParam}
+              values={innerValues}
+            />
+          </Fragment>
         )
       })}
+      <div className="flex flex-col [&>section]:px-0 [&>section]:pb-0">
+        <EffectStyleControls
+          layerId={layerId}
+          layerType={innerType}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          updateLayerParam={updateInnerParam}
+          values={innerValues}
+        />
+      </div>
     </div>
   )
 }

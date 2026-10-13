@@ -4,29 +4,13 @@ import { getMaskParameterDefinition } from "@/lib/editor/mask-animation"
 import { CellPaintControls } from "./cell-paint-controls"
 import {
   AnnotationsPaintedPlacement,
-  AnnotationsPalette,
   applyAnnotationPreset,
 } from "./annotations-controls"
+import { GRADIENT_MAP_RAMP_BINDING } from "./gradient-map-controls"
 import {
-  GRADIENT_MAP_RAMP_BINDING,
-  GradientMapControls,
-} from "./gradient-map-controls"
-import { LumenPrintControls } from "./lumen-print-controls"
-import { GrainControls } from "./grain-controls"
-import { SignalRotControls } from "./signal-rot-controls"
-import { DotGridControls } from "./dot-grid-controls"
-import { ErosionControls } from "./erosion-controls"
-import { ReliefControls } from "./relief-controls"
-import { FlaresControls } from "./flares-controls"
-import { FocusBlurControls } from "./focus-blur-controls"
-import { GlassControls } from "./glass-controls"
-import {
-  ConnectedDotsControls,
-  ConnectedDotsPalette,
-} from "./connected-dots-controls"
-import { PlotterControls } from "./plotter-controls"
-import { PhotocopyControls } from "./photocopy-controls"
-import { OutlineControls } from "./outline-controls"
+  EffectPaletteControls,
+  EffectStyleControls,
+} from "./effect-style-controls"
 import { PatternMotifControls } from "./pattern-motif-controls"
 import { SvgShapePalette, SvgShapeSource } from "./svg-shape-controls"
 import { ModelControls } from "./model-controls"
@@ -602,29 +586,15 @@ export function SelectedLayerPropertiesContent({
       if (key === "placement" && values.placement === "painted") {
         return <AnnotationsPaintedPlacement layerId={layerId} />
       }
-      if (key === "colorMode" && values.colorMode === "palette") {
-        return (
-          <AnnotationsPalette
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )
-      }
-      return null
     }
-    if (
-      layerType === "connected-dots" &&
-      key === "colorMode" &&
-      (values.colorMode ?? "palette") === "palette"
-    ) {
+    if (layerType === "annotations" || layerType === "connected-dots") {
       return (
-        <ConnectedDotsPalette
+        <EffectPaletteControls
           layerId={layerId}
+          layerType={layerType}
           onInteractionEnd={onInteractionEnd}
           onInteractionStart={onInteractionStart}
+          paramKey={key}
           updateLayerParam={updateLayerParam}
           values={values}
         />
@@ -984,126 +954,22 @@ export function SelectedLayerPropertiesContent({
           <CellPaintControls layerId={layerId} />
         )}
 
-        {layerType === "gradient-map" && (
-          <GradientMapControls
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            timelineControl={buildTimelineControl(
-              GRADIENT_MAP_RAMP_BINDING,
-              values.stops ?? ""
-            )}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-        {layerType === "lumen-print" && (
-          <LumenPrintControls
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "grain" && (
-          <GrainControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "signal-rot" && (
-          <SignalRotControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "dot-grid" && (
-          <DotGridControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "erosion" && (
-          <ErosionControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "relief" && (
-          <ReliefControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "flares" && (
-          <FlaresControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "focus-blur" && (
-          <FocusBlurControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "outline" && (
-          <OutlineControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "photocopy" && (
-          <PhotocopyControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "plotter" && (
-          <PlotterControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "glass" && (
-          <GlassControls
-            layerId={layerId}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
-
-        {layerType === "connected-dots" && (
-          <ConnectedDotsControls
-            layerId={layerId}
-            onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
-            updateLayerParam={updateLayerParam}
-            values={values}
-          />
-        )}
+        <EffectStyleControls
+          gradientMapTimelineControl={
+            layerType === "gradient-map"
+              ? buildTimelineControl(
+                  GRADIENT_MAP_RAMP_BINDING,
+                  values.stops ?? ""
+                )
+              : null
+          }
+          layerId={layerId}
+          layerType={layerType}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={onInteractionStart}
+          updateLayerParam={updateLayerParam}
+          values={values}
+        />
 
         {layerType === "text" ? (
           <section className="flex flex-col gap-3 border-t border-[var(--ds-border-divider)] px-4 pt-[14px] pb-4 first:border-t-0">
