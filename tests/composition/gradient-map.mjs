@@ -188,7 +188,7 @@ function solid(id, color, opacity = 1) {
     opacity,
     params: {
       ...layer.params,
-      animate: false,
+      motionStyle: "off",
       tonemapMode: "none",
       grainAmount: 0,
       glowStrength: 0,

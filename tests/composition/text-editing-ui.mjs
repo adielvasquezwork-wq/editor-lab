@@ -21,7 +21,7 @@ await Bun.write(
         name: "Headline",
         params: { ...createLayer("text").params, text: "Hello", fontSize: 64 },
       },
-      { ...base, id: "field", name: "Field", params: { ...base.params, animate: false } },
+      { ...base, id: "field", name: "Field", params: { ...base.params, motionStyle: "off" } },
     ],
     sceneConfig: {
       ...DEFAULT_SCENE_CONFIG,

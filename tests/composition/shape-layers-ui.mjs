@@ -16,7 +16,7 @@ await Bun.write(
     assets: [],
     layers: [
       { ...createLayer("shape"), id: "shape", name: "Shape" },
-      { ...base, id: "field", name: "Field", params: { ...base.params, animate: false } },
+      { ...base, id: "field", name: "Field", params: { ...base.params, motionStyle: "off" } },
     ],
     sceneConfig: {
       ...DEFAULT_SCENE_CONFIG,

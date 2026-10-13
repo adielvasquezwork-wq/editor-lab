@@ -13,7 +13,7 @@ function solid(id, color, name) {
     name,
     params: {
       ...layer.params,
-      animate: false,
+      motionStyle: "off",
       tonemapMode: "none",
       grainAmount: 0,
       glowStrength: 0,

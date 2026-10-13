@@ -21,7 +21,7 @@ await Bun.write(
         name: "Threshold",
         mask: { ...DEFAULT_LAYER_MASK, shape: "ellipse", center: [0.2, 0.1], size: [0.3, 0.2] },
       },
-      { ...base, id: "field", name: "Field", params: { ...base.params, animate: false } },
+      { ...base, id: "field", name: "Field", params: { ...base.params, motionStyle: "off" } },
     ],
     sceneConfig: {
       ...DEFAULT_SCENE_CONFIG,

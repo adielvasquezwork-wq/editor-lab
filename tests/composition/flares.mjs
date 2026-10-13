@@ -205,7 +205,7 @@ function solid(id, color) {
     id,
     params: {
       ...layer.params,
-      animate: false,
+      motionStyle: "off",
       tonemapMode: "none",
       grainAmount: 0,
       glowStrength: 0,
@@ -247,7 +247,7 @@ function stripes(id) {
     id,
     params: {
       ...layer.params,
-      animate: false,
+      motionStyle: "off",
       tonemapMode: "none",
       grainAmount: 0,
       glowStrength: 0,

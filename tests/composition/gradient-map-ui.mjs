@@ -25,7 +25,7 @@ await Bun.write(
         ...base,
         id: "field",
         name: "Field",
-        params: { ...base.params, animate: false },
+        params: { ...base.params, motionStyle: "off" },
       },
     ],
     sceneConfig: { ...DEFAULT_SCENE_CONFIG, backgroundColor: "#f5f2ee" },

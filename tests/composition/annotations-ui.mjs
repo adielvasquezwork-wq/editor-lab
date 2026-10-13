@@ -14,7 +14,7 @@ await Bun.write(
     composition: { width: 960, height: 540 },
     selectedLayerId: "field",
     assets: [],
-    layers: [{ ...base, id: "field", name: "Field", params: { ...base.params, animate: false } }],
+    layers: [{ ...base, id: "field", name: "Field", params: { ...base.params, motionStyle: "off" } }],
     sceneConfig: { ...DEFAULT_SCENE_CONFIG, compositionAspect: "16:9", compositionWidth: 960, compositionHeight: 540 },
     timeline: { duration: 5, loop: true, tracks: [] },
   })
