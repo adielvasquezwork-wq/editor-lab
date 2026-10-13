@@ -71,7 +71,7 @@ export function AudioSpectrumDisplay() {
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="relative overflow-hidden rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[rgb(10_10_14_/_0.6)]">
+      <div className="relative overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--skin-track)] shadow-[var(--ds-shadow-recessed)]">
         <svg
           aria-hidden="true"
           className="block h-[84px] w-full"
@@ -97,7 +97,7 @@ export function AudioSpectrumDisplay() {
           {boundaries.slice(1).map((boundary) => (
             <line
               key={`divider-${boundary.bandId}`}
-              stroke="rgb(255 255 255 / 0.1)"
+              stroke="var(--skin-grid-line)"
               strokeWidth="1"
               x1={boundary.startFraction * VIEW_WIDTH}
               x2={boundary.startFraction * VIEW_WIDTH}
