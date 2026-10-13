@@ -52,26 +52,24 @@ export function AudioSpectrumDisplay() {
     const lowestHz = layout.centerHz[0] ?? SPECTRO_MIN_HZ
     const highestHz = layout.centerHz.at(-1) ?? SPECTRO_MAX_HZ
 
-    return AUDIO_BAND_IDS.filter((bandId) => bandId !== "level").map(
-      (bandId) => ({
-        bandId,
-        endFraction: frequencyToFraction(
-          bands[bandId].highHz,
-          lowestHz,
-          highestHz
-        ),
-        startFraction: frequencyToFraction(
-          bands[bandId].lowHz,
-          lowestHz,
-          highestHz
-        ),
-      })
-    )
+    const visible = AUDIO_BAND_IDS.filter((bandId) => bandId !== "level")
+
+    return visible.map((bandId, index) => ({
+      bandId,
+      endFraction:
+        index === visible.length - 1
+          ? 1
+          : frequencyToFraction(bands[bandId].highHz, lowestHz, highestHz),
+      startFraction:
+        index === 0
+          ? 0
+          : frequencyToFraction(bands[bandId].lowHz, lowestHz, highestHz),
+    }))
   }, [bands, sampleRate])
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="relative overflow-hidden rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[rgb(10_10_14_/_0.6)]">
+      <div className="relative overflow-hidden rounded-[var(--ds-radius-control)] bg-[var(--skin-track)] shadow-[var(--ds-shadow-recessed)]">
         <svg
           aria-hidden="true"
           className="block h-[84px] w-full"
@@ -82,7 +80,7 @@ export function AudioSpectrumDisplay() {
 
           {boundaries.map((boundary) => (
             <rect
-              fill="rgb(182 151 255 / 0.05)"
+              fill="color-mix(in srgb, var(--ds-color-accent) 5%, transparent)"
               height={VIEW_HEIGHT}
               key={boundary.bandId}
               width={Math.max(
@@ -97,7 +95,7 @@ export function AudioSpectrumDisplay() {
           {boundaries.slice(1).map((boundary) => (
             <line
               key={`divider-${boundary.bandId}`}
-              stroke="rgb(255 255 255 / 0.1)"
+              stroke="var(--skin-grid-line)"
               strokeWidth="1"
               x1={boundary.startFraction * VIEW_WIDTH}
               x2={boundary.startFraction * VIEW_WIDTH}
@@ -108,9 +106,9 @@ export function AudioSpectrumDisplay() {
 
           <path
             d=""
-            fill="rgb(182 151 255 / 0.22)"
+            fill="color-mix(in srgb, var(--ds-color-accent) 22%, transparent)"
             ref={pathRef}
-            stroke="rgb(196 172 255 / 0.85)"
+            stroke="color-mix(in srgb, var(--ds-color-accent) 85%, transparent)"
             strokeWidth="1"
           />
         </svg>

@@ -21,11 +21,17 @@ import {
 import { AnchorPicker } from "@/components/ui/anchor-picker"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { IconButton } from "@/components/ui/icon-button"
+import { InfoHint } from "@/components/ui/info-hint"
 import { Select } from "@/components/ui/select"
 import { Slider } from "@/components/ui/slider"
 import { Toggle } from "@/components/ui/toggle"
 import { Typography } from "@/components/ui/typography"
 import { XYPad } from "@/components/ui/xy-pad"
+import { AxisFields } from "@/components/ui/axis-fields"
+import {
+  drivesCanvasHandles,
+  peekCanvasHandles,
+} from "@/store/canvas-handles-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
 import {
@@ -35,6 +41,7 @@ import {
   toNumberValue,
   toTextValue,
   toVec2Value,
+  toVec3Value,
 } from "./properties-sidebar-utils"
 
 export type TimelineKeyframeControl = {
@@ -101,7 +108,7 @@ function TimelineKeyframeButton({
           aria-label={`Create keyframe for ${control.binding.label}`}
           className={cn(
             "h-6 w-6 [&_svg]:h-3 [&_svg]:w-3",
-            control.hasTrack && "text-[rgb(200_220_255_/_0.92)]"
+            control.hasTrack && "text-[var(--ds-color-accent)]"
           )}
           disabled={!control.timelinePanelOpen}
           onClick={() =>
@@ -128,23 +135,9 @@ function renderFieldLabelStack(
   audioControl: AudioLinkControl | null = null
 ) {
   return (
-    <span
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: "2px",
-        minWidth: 0,
-      }}
-    >
-      <Typography className="min-w-0" tone="secondary" variant="label">
-        {renderFieldLabel(label, control, audioControl)}
-      </Typography>
-      {description ? (
-        <Typography tone="muted" variant="caption">
-          {description}
-        </Typography>
-      ) : null}
-    </span>
+    <Typography className="min-w-0" tone="secondary" variant="label">
+      {renderFieldLabel(label, control, audioControl, description)}
+    </Typography>
   )
 }
 
@@ -215,11 +208,15 @@ function shouldRenderCustomPaletteField(
 export function renderFieldLabel(
   label: string,
   control: TimelineKeyframeControl | null,
-  audioControl: AudioLinkControl | null = null
+  audioControl: AudioLinkControl | null = null,
+  description?: string | undefined
 ) {
   return (
     <span className="inline-flex min-w-0 w-full items-center justify-between gap-2">
-      <span>{label}</span>
+      <span className="inline-flex min-w-0 items-center gap-1.5">
+        <span className="truncate">{label}</span>
+        {description ? <InfoHint>{description}</InfoHint> : null}
+      </span>
       <span className="inline-flex shrink-0 items-center">
         <AudioLinkButton control={audioControl} />
         <TimelineKeyframeButton control={control} />
@@ -259,6 +256,10 @@ function ParameterFieldImpl({
     (state) =>
       state.layers.find((layer) => layer.id === layerId)?.params ?? null
   )
+  const startInteraction = () => {
+    if (drivesCanvasHandles(layerId, definition.key)) peekCanvasHandles()
+    onInteractionStart?.()
+  }
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const timelineControl: TimelineKeyframeControl | null = timelineBinding
     ? {
@@ -313,7 +314,7 @@ function ParameterFieldImpl({
               ? fontWeightControl.min
               : (definition.min ?? 0)
           }
-          onInteractionStart={onInteractionStart}
+          onInteractionStart={startInteraction}
           onValueChange={(nextValue) =>
             onChange(
               layerId,
@@ -386,9 +387,6 @@ function ParameterFieldImpl({
           return (
             <div
               className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
-              style={
-                definition.description ? { alignItems: "start" } : undefined
-              }
             >
               {renderFieldLabelStack(
                 fieldLabel,
@@ -416,7 +414,6 @@ function ParameterFieldImpl({
       return (
         <div
           className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_auto]"
-          style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
             fieldLabel,
@@ -438,7 +435,6 @@ function ParameterFieldImpl({
       return (
         <div
           className="grid items-center gap-[10px] [grid-template-columns:minmax(0,1fr)_132px]"
-          style={definition.description ? { alignItems: "start" } : undefined}
         >
           {renderFieldLabelStack(
             fieldLabel,
@@ -448,7 +444,7 @@ function ParameterFieldImpl({
           )}
           <ColorPicker
             onInteractionEnd={onInteractionEnd}
-            onInteractionStart={onInteractionStart}
+            onInteractionStart={startInteraction}
             onValueChange={(nextValue) =>
               onChange(layerId, definition.key, nextValue)
             }
@@ -458,13 +454,40 @@ function ParameterFieldImpl({
       )
 
     case "vec2":
+      if (definition.ui === "fields") {
+        return (
+          <AxisFields
+            axes={["X", "Y"]}
+            label={renderFieldLabelStack(
+              fieldLabel,
+              definition.description,
+              timelineControl,
+              audioControl
+            )}
+            max={definition.max}
+            min={definition.min}
+            onInteractionEnd={onInteractionEnd}
+            onInteractionStart={startInteraction}
+            onValueChange={(next) =>
+              onChange(layerId, definition.key, [next[0] ?? 0, next[1] ?? 0])
+            }
+            step={definition.step ?? 0.01}
+            value={toVec2Value(value)}
+          />
+        )
+      }
       return (
         <XYPad
-          label={renderFieldLabel(fieldLabel, timelineControl, audioControl)}
+          label={renderFieldLabel(
+            fieldLabel,
+            timelineControl,
+            audioControl,
+            definition.description
+          )}
           max={definition.max ?? 1}
           min={definition.min ?? -1}
           onInteractionEnd={onInteractionEnd}
-          onInteractionStart={onInteractionStart}
+          onInteractionStart={startInteraction}
           onValueChange={(nextValue) =>
             onChange(layerId, definition.key, nextValue)
           }
@@ -473,7 +496,55 @@ function ParameterFieldImpl({
         />
       )
 
+    case "vec3":
+      return (
+        <AxisFields
+          axes={["X", "Y", "Z"]}
+          label={renderFieldLabelStack(
+            fieldLabel,
+            definition.description,
+            timelineControl,
+            audioControl
+          )}
+          max={definition.max}
+          min={definition.min}
+          onInteractionEnd={onInteractionEnd}
+          onInteractionStart={startInteraction}
+          onValueChange={(next) =>
+            onChange(layerId, definition.key, [
+              next[0] ?? 0,
+              next[1] ?? 0,
+              next[2] ?? 0,
+            ])
+          }
+          step={definition.step ?? 0.01}
+          value={toVec3Value(value)}
+        />
+      )
+
     case "text":
+      if ((definition as TextParameterDefinition).multiline) {
+        return (
+          <label className="flex flex-col gap-2">
+            {renderFieldLabelStack(
+              fieldLabel,
+              definition.description,
+              timelineControl,
+              audioControl
+            )}
+            <textarea
+              className="min-h-[72px] w-full resize-y appearance-none rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-120 ease-[ease] focus:border-[var(--ds-color-text-secondary)] placeholder:text-[var(--ds-color-text-muted)]"
+              maxLength={(definition as TextParameterDefinition).maxLength}
+              onChange={(event) =>
+                onChange(layerId, definition.key, event.currentTarget.value)
+              }
+              rows={3}
+              spellCheck={false}
+              value={toTextValue(value, definition.defaultValue)}
+            />
+          </label>
+        )
+      }
       return (
         <label className="flex flex-col gap-2">
           {renderFieldLabelStack(

@@ -1,4 +1,10 @@
 import {
+  drawTextBlock,
+  resolveLineHeight,
+  resolveTextAlign,
+  resolveTextRotation,
+} from "./text-layout"
+import {
   float,
   type TSLNode,
   texture as tslTexture,
@@ -24,17 +30,6 @@ type TextAnchor =
   | "bottom-right"
 type HorizontalAnchor = "left" | "center" | "right"
 type VerticalAnchor = "top" | "center" | "bottom"
-
-type TextMetrics = {
-  ascent: number
-  descent: number
-}
-
-type GlyphLayout = {
-  advance: number
-  char: string
-  x: number
-}
 
 function resolveTextAnchor(value: unknown): TextAnchor {
   switch (value) {
@@ -85,31 +80,13 @@ function getAnchorPlacement(anchor: TextAnchor): {
   }
 }
 
-function getTextMetrics(
-  context: CanvasRenderingContext2D,
-  text: string,
-  fontSize: number
-): TextMetrics {
-  const measured = context.measureText(text)
-  const fallbackAscent = fontSize * 0.78
-  const fallbackDescent = fontSize * 0.22
-
-  return {
-    ascent:
-      measured.actualBoundingBoxAscent > 0
-        ? measured.actualBoundingBoxAscent
-        : fallbackAscent,
-    descent:
-      measured.actualBoundingBoxDescent > 0
-        ? measured.actualBoundingBoxDescent
-        : fallbackDescent,
-  }
-}
 
 export class TextPass extends PassNode {
   private readonly placeholder: THREE.Texture
   private textureNode: Node
   private textTexture: THREE.CanvasTexture | null = null
+  private textTextureWidth = 0
+  private textTextureHeight = 0
   private canvas: HTMLCanvasElement | null = null
   private width = 1
   private height = 1
@@ -198,7 +175,7 @@ export class TextPass extends PassNode {
     )
     const baseFontSize =
       typeof this.params.fontSize === "number"
-        ? Math.max(48, this.params.fontSize)
+        ? Math.max(4, this.params.fontSize)
         : 280
     const fontSize = Math.round(baseFontSize * scaleFactor)
     const fontFamilyValue =
@@ -242,40 +219,6 @@ export class TextPass extends PassNode {
     context.textBaseline = "alphabetic"
     context.font = `${normalizedFontWeight} ${fontSize}px ${fontFamily}`
 
-    const characters = [...text]
-    const spacing = fontSize * letterSpacing
-    const glyphLayout: GlyphLayout[] = []
-    let visualLeft = Number.POSITIVE_INFINITY
-    let visualRight = Number.NEGATIVE_INFINITY
-    let cursorX = 0
-
-    for (const [index, char] of characters.entries()) {
-      const metrics = context.measureText(char)
-      const advance = metrics.width
-      const glyphLeft = cursorX - Math.max(0, metrics.actualBoundingBoxLeft)
-      const glyphRight =
-        cursorX + Math.max(metrics.actualBoundingBoxRight, advance)
-
-      glyphLayout.push({
-        advance,
-        char,
-        x: cursorX,
-      })
-      visualLeft = Math.min(visualLeft, glyphLeft)
-      visualRight = Math.max(visualRight, glyphRight)
-      cursorX += advance
-
-      if (index < characters.length - 1) {
-        cursorX += spacing
-      }
-    }
-
-    if (!Number.isFinite(visualLeft)) {
-      visualLeft = 0
-      visualRight = 0
-    }
-
-    const metrics = getTextMetrics(context, text, fontSize)
     let anchorX = this.width * 0.5
     if (horizontal === "left") {
       anchorX = 0
@@ -292,27 +235,32 @@ export class TextPass extends PassNode {
 
     const offsetX = offset[0] * this.width
     const offsetY = offset[1] * this.height
+    drawTextBlock(context, {
+      text,
+      fontSize,
+      letterSpacing,
+      lineHeight: resolveLineHeight(this.params.lineHeight),
+      align: resolveTextAlign(this.params.align),
+      rotation: resolveTextRotation(this.params.rotation),
+      horizontal,
+      vertical,
+      pivotX: anchorX + offsetX,
+      pivotY: anchorY - offsetY,
+    })
 
-    let startX = anchorX + offsetX - (visualLeft + visualRight) * 0.5
-    if (horizontal === "left") {
-      startX = anchorX + offsetX - visualLeft
-    } else if (horizontal === "right") {
-      startX = anchorX + offsetX - visualRight
-    }
-
-    let baselineY = anchorY - offsetY + (metrics.ascent - metrics.descent) * 0.5
-    if (vertical === "top") {
-      baselineY = anchorY - offsetY + metrics.ascent
-    } else if (vertical === "bottom") {
-      baselineY = anchorY - offsetY - metrics.descent
-    }
-
-    for (const glyph of glyphLayout) {
-      context.fillText(glyph.char, startX + glyph.x, baselineY)
+    if (
+      this.textTexture &&
+      (this.textTextureWidth !== canvas.width ||
+        this.textTextureHeight !== canvas.height)
+    ) {
+      this.textTexture.dispose()
+      this.textTexture = null
     }
 
     if (!this.textTexture) {
       this.textTexture = new THREE.CanvasTexture(canvas)
+      this.textTextureWidth = canvas.width
+      this.textTextureHeight = canvas.height
       this.textTexture.flipY = false
       this.textTexture.generateMipmaps = false
       this.textTexture.magFilter = THREE.LinearFilter

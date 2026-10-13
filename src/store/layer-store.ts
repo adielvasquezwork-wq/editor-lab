@@ -1,9 +1,14 @@
 import { create } from "zustand"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
-  getDefaultProjectLayers,
-  getDefaultProjectSelectedLayerId,
-} from "@/lib/editor/default-project"
+  dropLayer,
+  insertGroup,
+  type LayerDropTarget,
+  moveLayerToGroup,
+  reorderSiblingLayers,
+  subtreeLayers,
+  visibleLayerRows,
+} from "@/lib/editor/layer-groups"
 import {
   clampLayerAdjustments,
   cloneLayer,
@@ -15,18 +20,22 @@ import {
   getParameterDefinition,
 } from "@/lib/editor/parameter-schema"
 import { normalizeTextFontWeight } from "@/lib/editor/text-fonts"
+import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import { useAudioStore } from "@/store/audio-store"
+import { meshGradientPresetParams, shuffleMeshGradient } from "@/lib/editor/mesh-gradient"
 import { useEditorStore } from "@/store/editor-store"
+import { useTimelineStore } from "@/store/timeline-store"
 import type {
   BlendMode,
   EditorLayer,
   FluidInteractionEvent,
   LayerCompositeMode,
-  LayerParameterValues,
   LayerType,
   MaskConfig,
   ParameterValue,
+  LayerMask,
 } from "@/types/editor"
-import { DEFAULT_MASK_CONFIG } from "@/types/editor"
+import { DEFAULT_LAYER_MASK, DEFAULT_MASK_CONFIG } from "@/types/editor"
 
 export interface LayerStoreState {
   hoveredLayerId: string | null
@@ -38,6 +47,11 @@ export interface LayerStoreState {
 }
 
 export interface LayerStoreActions {
+  groupLayers: (ids: string[]) => string | null
+  ungroupLayer: (id: string) => void
+  moveLayer: (id: string, parentId: string | null) => void
+  dropLayer: (id: string, target: LayerDropTarget) => void
+  reorderSiblings: (parentId: string | null, ids: string[]) => void
   addLayer: (type: LayerType, insertIndex?: number) => string
   duplicateLayer: (id: string) => string | null
   getLayerById: (id: string) => EditorLayer | null
@@ -62,9 +76,13 @@ export interface LayerStoreActions {
   ) => void
   setHoveredLayer: (id: string | null) => void
   setLayerAsset: (id: string, assetId: string | null) => void
+  setLayerDepthAsset: (id: string, assetId: string | null) => void
+  setLayerEnvironmentAsset: (id: string, assetId: string | null) => void
+  setLayerPatternAssets: (id: string, assetIds: string[]) => void
   setLayerBlendMode: (id: string, blendMode: BlendMode) => void
   setLayerCompositeMode: (id: string, compositeMode: LayerCompositeMode) => void
   setLayerMaskConfig: (id: string, updates: Partial<MaskConfig>) => void
+  setLayerMask: (id: string, updates: Partial<LayerMask>) => void
   setLayerExpanded: (id: string, expanded: boolean) => void
   setFluidInteractionEvents: (
     id: string,
@@ -83,8 +101,6 @@ export interface LayerStoreActions {
 }
 
 export type LayerStore = LayerStoreState & LayerStoreActions
-
-const DEFAULT_SELECTED_LAYER_ID = getDefaultProjectSelectedLayerId()
 
 function getGradientNoiseDefaults(noiseType: string): {
   warpAmount: number
@@ -124,273 +140,6 @@ function getGradientNoiseDefaults(noiseType: string): {
     default:
       return null
   }
-}
-
-function getGradientPresetDefaults(
-  preset: string
-): Record<string, ParameterValue> | null {
-  switch (preset) {
-    case "aurora":
-      return {
-        activePoints: 5,
-        point1Color: "#ed6a5a",
-        point1Position: [-0.8, -0.6],
-        point1Weight: 1.0,
-        point2Color: "#f4f1bb",
-        point2Position: [0.2, 0.7],
-        point2Weight: 1.0,
-        point3Color: "#9bc1bc",
-        point3Position: [0.9, -0.3],
-        point3Weight: 1.0,
-        point4Color: "#5d576b",
-        point4Position: [-0.4, 0.5],
-        point4Weight: 1.0,
-        point5Color: "#e6ebe0",
-        point5Position: [0.6, -0.8],
-        point5Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.8,
-        warpScale: 4.0,
-        warpIterations: 3,
-        warpDecay: 1.0,
-        warpBias: 0.65,
-        vortexAmount: 0.3,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.08,
-        vignetteStrength: 0.0,
-        vignetteRadius: 1.5,
-        vignetteSoftness: 1,
-      }
-    case "sunset":
-      return {
-        activePoints: 4,
-        point1Color: "#1a0a2e",
-        point1Position: [-0.6, -0.8],
-        point1Weight: 0.8,
-        point2Color: "#c4420a",
-        point2Position: [0.3, 0.4],
-        point2Weight: 1.2,
-        point3Color: "#e8821a",
-        point3Position: [0.8, 0.7],
-        point3Weight: 0.9,
-        point4Color: "#4a1942",
-        point4Position: [-0.5, 0.3],
-        point4Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.6,
-        warpScale: 3.5,
-        warpIterations: 2,
-        warpDecay: 1.2,
-        warpBias: 0.5,
-        vortexAmount: 0.0,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.08,
-        vignetteStrength: 0.15,
-        vignetteRadius: 1.4,
-        vignetteSoftness: 0.8,
-      }
-    case "deep-ocean":
-      return {
-        activePoints: 4,
-        point1Color: "#020b1a",
-        point1Position: [0.0, -0.7],
-        point1Weight: 0.8,
-        point2Color: "#0a3d62",
-        point2Position: [-0.6, 0.4],
-        point2Weight: 1.2,
-        point3Color: "#3c8dbc",
-        point3Position: [0.7, 0.1],
-        point3Weight: 0.9,
-        point4Color: "#061224",
-        point4Position: [0.3, 0.8],
-        point4Weight: 1.0,
-        noiseType: "turbulence",
-        warpAmount: 0.04,
-        warpScale: 0.28,
-        warpIterations: 3,
-        warpDecay: 0.8,
-        warpBias: 0.4,
-        vortexAmount: 0.35,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.06,
-        vignetteStrength: 0.2,
-        vignetteRadius: 1.3,
-        vignetteSoftness: 0.7,
-      }
-    case "neon-glow":
-      return {
-        activePoints: 5,
-        point1Color: "#0a0a0a",
-        point1Position: [0.0, 0.0],
-        point1Weight: 0.6,
-        point2Color: "#b80050",
-        point2Position: [-0.7, -0.5],
-        point2Weight: 1.3,
-        point3Color: "#0088aa",
-        point3Position: [0.8, 0.3],
-        point3Weight: 1.1,
-        point4Color: "#220033",
-        point4Position: [0.2, -0.8],
-        point4Weight: 0.9,
-        point5Color: "#1a0a2e",
-        point5Position: [-0.5, 0.7],
-        point5Weight: 1.0,
-        noiseType: "simplex",
-        warpAmount: 0.7,
-        warpScale: 4.0,
-        warpIterations: 3,
-        warpDecay: 1.0,
-        warpBias: 0.35,
-        vortexAmount: -0.25,
-        falloff: 3.5,
-        tonemapMode: "totos",
-        glowStrength: 0.0,
-        glowThreshold: 0.0,
-        grainAmount: 0.05,
-        vignetteStrength: 0.1,
-        vignetteRadius: 1.5,
-        vignetteSoftness: 1,
-      }
-    default:
-      return null
-  }
-}
-
-function randomBetween(min: number, max: number): number {
-  return min + Math.random() * (max - min)
-}
-
-function randomInt(min: number, max: number): number {
-  return Math.floor(randomBetween(min, max + 1))
-}
-
-function clampValue(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value))
-}
-
-function randomChoice<T>(values: readonly T[]): T {
-  return values[Math.floor(Math.random() * values.length)] as T
-}
-
-function randomHexColor(): string {
-  const hue = randomInt(0, 359)
-  const saturation = randomInt(45, 95) / 100
-  const lightness = randomInt(30, 78) / 100
-  const chroma = (1 - Math.abs(2 * lightness - 1)) * saturation
-  const hueSector = hue / 60
-  const x = chroma * (1 - Math.abs((hueSector % 2) - 1))
-  const match = lightness - chroma / 2
-
-  let r = 0
-  let g = 0
-  let b = 0
-
-  if (hueSector < 1) {
-    r = chroma
-    g = x
-  } else if (hueSector < 2) {
-    r = x
-    g = chroma
-  } else if (hueSector < 3) {
-    g = chroma
-    b = x
-  } else if (hueSector < 4) {
-    g = x
-    b = chroma
-  } else if (hueSector < 5) {
-    r = x
-    b = chroma
-  } else {
-    r = chroma
-    b = x
-  }
-
-  const toHex = (channel: number) =>
-    Math.round((channel + match) * 255)
-      .toString(16)
-      .padStart(2, "0")
-
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`
-}
-
-function buildRandomGradientParams(): LayerParameterValues {
-  const params = resetLayerParameters("gradient")
-  const noiseType = randomChoice([
-    "simplex",
-    "perlin",
-    "value",
-    "voronoi",
-    "ridge",
-    "turbulence",
-  ] as const)
-  const noiseDefaults = getGradientNoiseDefaults(noiseType)
-
-  params.preset = "custom"
-  params.activePoints = randomInt(2, 5)
-
-  for (let index = 1; index <= 5; index += 1) {
-    params[`point${index}Color`] = randomHexColor()
-    params[`point${index}Position`] = [
-      Number(randomBetween(-1.1, 1.1).toFixed(2)),
-      Number(randomBetween(-1.1, 1.1).toFixed(2)),
-    ]
-    params[`point${index}Weight`] = Number(randomBetween(0.2, 2.4).toFixed(2))
-  }
-
-  params.noiseType = noiseType
-  params.noiseSeed = Number(randomBetween(0, 100).toFixed(1))
-  params.warpAmount = Number(
-    clampValue(
-      randomBetween(
-        (noiseDefaults?.warpAmount ?? 0.3) * 0.6,
-        (noiseDefaults?.warpAmount ?? 0.3) * 1.4 + 0.08
-      ),
-      0,
-      1
-    ).toFixed(2)
-  )
-  params.warpScale = Number(
-    clampValue(
-      randomBetween(
-        (noiseDefaults?.warpScale ?? 2.5) * 0.6,
-        (noiseDefaults?.warpScale ?? 2.5) * 1.4 + 0.2
-      ),
-      0.1,
-      6
-    ).toFixed(2)
-  )
-  params.warpIterations = randomInt(1, 4)
-  params.warpDecay = Number(randomBetween(0.4, 1.8).toFixed(2))
-  params.warpBias = Number(randomBetween(0, 1).toFixed(2))
-  params.vortexAmount = Number(randomBetween(-1, 1).toFixed(2))
-  params.animate = Math.random() > 0.2
-  params.motionAmount = Number(randomBetween(0, 1).toFixed(2))
-  params.motionSpeed = Number(randomBetween(0, 2).toFixed(2))
-  params.falloff = Number(randomBetween(0.8, 3.8).toFixed(2))
-  params.tonemapMode = randomChoice([
-    "none",
-    "aces",
-    "reinhard",
-    "totos",
-    "cinematic",
-  ] as const)
-  params.glowStrength = Number(randomBetween(0, 0.45).toFixed(2))
-  params.glowThreshold = Number(randomBetween(0, 0.6).toFixed(2))
-  params.grainAmount = Number(randomBetween(0, 0.25).toFixed(2))
-  params.vignetteStrength = Number(randomBetween(0, 0.35).toFixed(2))
-  params.vignetteRadius = Number(randomBetween(0.6, 1.5).toFixed(2))
-  params.vignetteSoftness = Number(randomBetween(0.2, 1).toFixed(2))
-
-  return params
 }
 
 function getDitheringPresetDefaults(
@@ -485,15 +234,27 @@ function getSelectionAfterRemoval(
   return getNeighborSelection(layers, Math.min(...removedIndices))
 }
 
+function pruneRemovedLayerDependencies(layers: EditorLayer[]): void {
+  useTimelineStore.getState().pruneTracks(layers)
+  const ids = new Set(layers.map((layer) => layer.id))
+  const audio = useAudioStore.getState().getSnapshot()
+  const links = audio.links.filter((link) => ids.has(link.layerId))
+  const source =
+    audio.source?.kind === "video-layer" && !ids.has(audio.source.layerId)
+      ? null
+      : audio.source
+  if (links.length !== audio.links.length || source !== audio.source) {
+    useAudioStore.getState().restoreSnapshot({ ...audio, links, source })
+  }
+}
+
 export const useLayerStore = create<LayerStore>((set, get) => ({
   hoveredLayerId: null,
-  layers: getDefaultProjectLayers(),
+  layers: [],
   recordingFluidLayerId: null,
-  selectedLayerIds: DEFAULT_SELECTED_LAYER_ID
-    ? [DEFAULT_SELECTED_LAYER_ID]
-    : [],
-  selectedLayerId: DEFAULT_SELECTED_LAYER_ID,
-  selectionAnchorId: DEFAULT_SELECTED_LAYER_ID,
+  selectedLayerIds: [],
+  selectedLayerId: null,
+  selectionAnchorId: null,
 
   addLayer: (type, insertIndex) => {
     const existingLayers = get().layers
@@ -502,15 +263,26 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     set((state) => {
       const layers = [...state.layers]
 
-      if (
-        insertIndex === undefined ||
-        insertIndex < 0 ||
-        insertIndex > layers.length
-      ) {
-        layers.unshift(nextLayer)
-      } else {
-        layers.splice(insertIndex, 0, nextLayer)
+      const selected = state.layers.find(
+        (layer) => layer.id === state.selectedLayerId
+      )
+      let index = insertIndex
+      if (index === undefined && selected?.kind === "group") {
+        nextLayer.parentId = selected.id
+        index = state.layers.indexOf(selected) + 1
+        layers[state.layers.indexOf(selected)] = { ...selected, expanded: true }
+      } else if (index === undefined && selected?.parentId) {
+        nextLayer.parentId = selected.parentId
+        index = state.layers.indexOf(selected)
+      } else if (index !== undefined && layers[index]?.parentId) {
+        nextLayer.parentId = layers[index]!.parentId ?? null
       }
+      layers.splice(
+        Math.max(0, Math.min(index ?? 0, layers.length)),
+        0,
+        nextLayer
+      )
+      validateLayerHierarchy(layers)
 
       return {
         layers,
@@ -530,7 +302,11 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   removeLayers: (ids) => {
-    const idSet = new Set(ids)
+    const idSet = new Set(
+      ids.flatMap((id) =>
+        subtreeLayers(get().layers, id).map((layer) => layer.id)
+      )
+    )
 
     if (idSet.size === 0) {
       return
@@ -577,6 +353,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
             : state.selectionAnchorId,
       }
     })
+    pruneRemovedLayerDependencies(get().layers)
   },
 
   duplicateLayer: (id) => {
@@ -586,48 +363,104 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       return null
     }
 
-    const duplicatedLayer = cloneLayer(sourceLayer)
-
+    const originals = subtreeLayers(get().layers, id)
+    const clones = originals.map(cloneLayer)
+    const mapping = new Map(
+      originals.map((layer, i) => [layer.id, clones[i]!.id])
+    )
+    const duplicated = clones.map((layer, i) => ({
+      ...layer,
+      name: i === 0 ? layer.name : originals[i]!.name,
+      parentId: layer.parentId
+        ? (mapping.get(layer.parentId) ?? layer.parentId)
+        : null,
+    }))
+    const duplicatedId = duplicated[0]!.id
     set((state) => {
-      const sourceIndex = state.layers.findIndex((layer) => layer.id === id)
       const layers = [...state.layers]
-
-      layers.splice(sourceIndex + 1, 0, duplicatedLayer)
-
+      const sourceIndex = layers.findIndex((layer) => layer.id === id)
+      layers.splice(sourceIndex + originals.length, 0, ...duplicated)
       return {
         layers,
-        selectedLayerIds: [duplicatedLayer.id],
-        selectedLayerId: duplicatedLayer.id,
-        selectionAnchorId: duplicatedLayer.id,
+        selectedLayerIds: [duplicatedId],
+        selectedLayerId: duplicatedId,
+        selectionAnchorId: duplicatedId,
       }
     })
+    return duplicatedId
+  },
 
-    return duplicatedLayer.id
+  groupLayers: (ids) => {
+    if (!ids.length) return get().addLayer("group", 0)
+    const group = createLayer("group", countLayersOfType(get().layers, "group"))
+    const layers = insertGroup(get().layers, ids, group)
+    if (!layers) return null
+    set({
+      layers,
+      selectedLayerId: group.id,
+      selectedLayerIds: [group.id],
+      selectionAnchorId: group.id,
+    })
+    return group.id
+  },
+
+  ungroupLayer: (id) => {
+    const group = get().layers.find(
+      (layer) => layer.id === id && layer.kind === "group"
+    )
+    if (!group || group.locked) return
+    const children = get()
+      .layers.filter((layer) => layer.parentId === id)
+      .map((layer) => layer.id)
+    const layers = get()
+      .layers.filter((layer) => layer.id !== id)
+      .map((layer) =>
+        layer.parentId === id
+          ? { ...layer, parentId: group.parentId ?? null }
+          : layer
+      )
+    get().replaceState(
+      layers,
+      children[0] ?? group.parentId ?? null,
+      null,
+      children
+    )
+    pruneRemovedLayerDependencies(layers)
+  },
+
+  moveLayer: (id, parentId) => {
+    const layers = moveLayerToGroup(get().layers, id, parentId)
+    if (layers) set({ layers })
+  },
+
+  dropLayer: (id, target) => {
+    const layers = dropLayer(get().layers, id, target)
+    if (layers && layers !== get().layers) set({ layers })
+  },
+
+  reorderSiblings: (parentId, ids) => {
+    set((state) => ({
+      layers: reorderSiblingLayers(state.layers, parentId, ids),
+    }))
   },
 
   reorderLayers: (fromIndex, toIndex) => {
-    set((state) => {
-      if (
-        fromIndex < 0 ||
-        toIndex < 0 ||
-        fromIndex >= state.layers.length ||
-        toIndex >= state.layers.length ||
-        fromIndex === toIndex
-      ) {
-        return state
-      }
-
-      const layers = [...state.layers]
-      const [movedLayer] = layers.splice(fromIndex, 1)
-
-      if (!movedLayer) {
-        return state
-      }
-
-      layers.splice(toIndex, 0, movedLayer)
-
-      return { layers }
-    })
+    const layers = get().layers
+    const source = layers[fromIndex]
+    const target = layers[toIndex]
+    if (
+      !(source && target) ||
+      (source.parentId ?? null) !== (target.parentId ?? null)
+    )
+      return
+    const siblings = layers
+      .filter((layer) => (layer.parentId ?? null) === (source.parentId ?? null))
+      .map((layer) => layer.id)
+    const from = siblings.indexOf(source.id)
+    const to = siblings.indexOf(target.id)
+    siblings.splice(from, 1)
+    siblings.splice(to, 0, source.id)
+    get().reorderSiblings(source.parentId ?? null, siblings)
   },
 
   selectLayer: (selectedLayerId) => {
@@ -646,7 +479,8 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     const { additive = false, range = false } = options
 
     set((state) => {
-      const targetIndex = state.layers.findIndex(
+      const rows = visibleLayerRows(state.layers)
+      const targetIndex = rows.findIndex(
         (layer) => layer.id === selectedLayerId
       )
 
@@ -657,9 +491,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       if (range) {
         const anchorId =
           state.selectionAnchorId ?? state.selectedLayerId ?? selectedLayerId
-        const anchorIndex = state.layers.findIndex(
-          (layer) => layer.id === anchorId
-        )
+        const anchorIndex = rows.findIndex((layer) => layer.id === anchorId)
 
         if (anchorIndex === -1) {
           return {
@@ -669,7 +501,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           }
         }
 
-        const rangeIds = state.layers
+        const rangeIds = rows
           .slice(
             Math.min(anchorIndex, targetIndex),
             Math.max(anchorIndex, targetIndex) + 1
@@ -759,10 +591,19 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   setLayerExpanded: (id, expanded) => {
+    const hiddenIds = new Set(
+      subtreeLayers(get().layers, id)
+        .slice(1)
+        .map((layer) => layer.id)
+    )
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === id ? { ...layer, expanded } : layer
       ),
+      ...(!expanded &&
+      state.selectedLayerIds.some((selected) => hiddenIds.has(selected))
+        ? { selectedLayerId: id, selectedLayerIds: [id], selectionAnchorId: id }
+        : {}),
     }))
   },
 
@@ -851,7 +692,9 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   setLayerCompositeMode: (id, compositeMode) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
-        layer.id === id ? { ...layer, compositeMode } : layer
+        layer.id === id && layer.kind !== "group"
+          ? { ...layer, compositeMode }
+          : layer
       ),
     }))
   },
@@ -866,10 +709,53 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     }))
   },
 
+  setLayerMask: (id, updates) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? {
+              ...layer,
+              mask: { ...DEFAULT_LAYER_MASK, ...(layer.mask ?? {}), ...updates },
+            }
+          : layer
+      ),
+    }))
+  },
+
   setLayerAsset: (id, assetId) => {
     set((state) => ({
       layers: state.layers.map((layer) =>
         layer.id === id ? { ...layer, assetId, runtimeError: null } : layer
+      ),
+    }))
+  },
+
+  setLayerDepthAsset: (id, assetId) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? { ...layer, depthAssetId: assetId, runtimeError: null }
+          : layer
+      ),
+    }))
+  },
+
+  setLayerEnvironmentAsset: (id, assetId) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? { ...layer, environmentAssetId: assetId, runtimeError: null }
+          : layer
+      ),
+    }))
+  },
+
+  setLayerPatternAssets: (id, assetIds) => {
+    set((state) => ({
+      layers: state.layers.map((layer) =>
+        layer.id === id
+          ? { ...layer, patternAssetIds: [...assetIds], runtimeError: null }
+          : layer
       ),
     }))
   },
@@ -880,7 +766,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
         layer.id === id && layer.type === "gradient"
           ? {
               ...layer,
-              params: buildRandomGradientParams(),
+              params: { ...layer.params, ...shuffleMeshGradient() },
               runtimeError: null,
             }
           : layer
@@ -945,7 +831,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
           key === "preset" &&
           typeof value === "string"
         ) {
-          const defaults = getGradientPresetDefaults(value)
+          const defaults = meshGradientPresetParams(value)
 
           if (defaults) {
             Object.assign(nextParams, defaults)
@@ -1013,6 +899,7 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
     hoveredLayerId = null,
     selectedLayerIds = []
   ) => {
+    validateLayerHierarchy(layers)
     const normalizedSelectedLayerIds = (selectedLayerIds ?? []).filter((id) =>
       layers.some((layer) => layer.id === id)
     )
@@ -1058,6 +945,6 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
   },
 
   getRenderableLayers: () => {
-    return get().layers.filter((layer) => layer.visible)
+    return get().layers
   },
 }))

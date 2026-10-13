@@ -5,6 +5,7 @@ import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { requestDraftSave } from "@/lib/editor/draft-save-bus"
 import { duplicateLayers } from "@/lib/editor/duplicate-layers"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
+import { toggleLayoutGrid } from "@/lib/editor/layout-grid"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
 import { useTimelineStore } from "@/store/timeline-store"
@@ -27,6 +28,31 @@ export function EditorShortcuts() {
 
   const handleKeyDown = useEffectEvent((event: KeyboardEvent) => {
     if (isEditableTarget(event.target)) {
+      return
+    }
+
+    if (
+      (event.metaKey || event.ctrlKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === "g"
+    ) {
+      event.preventDefault()
+      const state = useLayerStore.getState()
+      if (event.shiftKey) {
+        for (const id of state.selectedLayerIds) state.ungroupLayer(id)
+      } else {
+        state.groupLayers(state.selectedLayerIds)
+      }
+      return
+    }
+
+    if (
+      event.shiftKey &&
+      !(event.metaKey || event.ctrlKey || event.altKey) &&
+      event.code === "KeyG"
+    ) {
+      event.preventDefault()
+      toggleLayoutGrid()
       return
     }
 

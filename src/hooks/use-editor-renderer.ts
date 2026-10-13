@@ -6,7 +6,9 @@ import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
 import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"
 import { RendererBootTrace } from "@/lib/renderer-boot"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
+import { withCellPaintPreview } from "@/store/cell-paint-store"
 import { buildRendererFrame, type EditorRenderer } from "@/renderer/contracts"
+import { fitDocumentToViewport, getDocumentSize } from "@/lib/editor/composition"
 import { errorFingerprint } from "@/renderer/pass-failure"
 import { browserSupportsWebGPU } from "@/renderer/webgpu-support"
 import { useAssetStore } from "@/store/asset-store"
@@ -24,15 +26,24 @@ const rendererModulePromise = browserSupportsWebGPU()
   ? import("@/renderer/create-webgpu-renderer")
   : null
 
+const ZOOM_RENDER_MAX_EDGE = 4096
+const ZOOM_RENDER_SETTLE_MS = 150
+
 function getPixelRatio(): number {
   if (typeof window === "undefined") {
     return 1
   }
 
   const devicePixelRatio = Math.min(window.devicePixelRatio || 1, 2)
-  const renderScale = useEditorStore.getState().renderScale
+  const { canvasSize, renderScale, zoom } = useEditorStore.getState()
+  const base = Math.max(0.1, devicePixelRatio * renderScale)
 
-  return Math.max(0.1, devicePixelRatio * renderScale)
+  if (zoom <= 1) {
+    return base
+  }
+
+  const longEdge = Math.max(1, canvasSize.width, canvasSize.height)
+  return Math.min(base * zoom, Math.max(base, ZOOM_RENDER_MAX_EDGE / longEdge))
 }
 
 function measureElement(element: HTMLElement): Size {
@@ -112,6 +123,9 @@ export function useEditorRenderer() {
     let frameInFlight = false
     let unregisterFramePump: (() => void) | null = null
     let unsubscribeRenderScale: (() => void) | null = null
+    let unsubscribeZoom: (() => void) | null = null
+    let zoomSettleTimer: ReturnType<typeof setTimeout> | null = null
+    let unsubscribeDocument: (() => void) | null = null
     let unsubscribeSceneRevision: (() => void) | null = null
     let consecutiveFrameFailures = 0
     let loopHalted = false
@@ -157,9 +171,27 @@ export function useEditorRenderer() {
           return
         }
 
-        const initialSize = measureElement(viewportElement)
-        editorStore.setCanvasSize(initialSize.width, initialSize.height)
-        renderer.resize(initialSize, getPixelRatio())
+        let viewportSize = measureElement(viewportElement)
+        let lastPixelRatio = getPixelRatio()
+        const applyRendererSize = () => {
+          lastPixelRatio = getPixelRatio()
+          renderer.resize(useEditorStore.getState().canvasSize, lastPixelRatio)
+        }
+        const documentSignature = () => {
+          const state = useEditorStore.getState()
+          const document = getDocumentSize(state.sceneConfig, state.outputSize)
+          return document ? `${document.width}x${document.height}` : "screen"
+        }
+        const fitCanvas = () => {
+          const state = useEditorStore.getState()
+          const document = getDocumentSize(state.sceneConfig, state.outputSize)
+          const nextSize = document
+            ? fitDocumentToViewport(document, viewportSize)
+            : viewportSize
+          state.setCanvasSize(nextSize.width, nextSize.height)
+          applyRendererSize()
+        }
+        fitCanvas()
         editorStore.setWebGPUStatus("ready")
         revealDeadline = performance.now() + SCENE_REVEAL_TIMEOUT_MS
 
@@ -168,18 +200,22 @@ export function useEditorRenderer() {
             return
           }
 
-          const nextSize = {
+          viewportSize = {
             height: Math.max(1, Math.round(entry.contentRect.height)),
             width: Math.max(1, Math.round(entry.contentRect.width)),
           }
-
-          useEditorStore
-            .getState()
-            .setCanvasSize(nextSize.width, nextSize.height)
-          renderer.resize(nextSize, getPixelRatio())
+          fitCanvas()
         })
 
         resizeObserver.observe(viewportElement)
+
+        let lastDocumentSignature = documentSignature()
+        unsubscribeDocument = useEditorStore.subscribe(() => {
+          const next = documentSignature()
+          if (next === lastDocumentSignature) return
+          lastDocumentSignature = next
+          fitCanvas()
+        })
 
         let lastRenderScale = useEditorStore.getState().renderScale
         unsubscribeRenderScale = useEditorStore.subscribe((state) => {
@@ -188,7 +224,21 @@ export function useEditorRenderer() {
           }
 
           lastRenderScale = state.renderScale
-          renderer.resize(useEditorStore.getState().canvasSize, getPixelRatio())
+          applyRendererSize()
+        })
+
+        let lastZoom = useEditorStore.getState().zoom
+        unsubscribeZoom = useEditorStore.subscribe((state) => {
+          if (state.zoom === lastZoom) {
+            return
+          }
+
+          lastZoom = state.zoom
+          if (zoomSettleTimer !== null) clearTimeout(zoomSettleTimer)
+          zoomSettleTimer = setTimeout(() => {
+            zoomSettleTimer = null
+            if (getPixelRatio() !== lastPixelRatio) applyRendererSize()
+          }, ZOOM_RENDER_SETTLE_MS)
         })
 
         // A swapped-in scene gets its own loading state: without this the
@@ -351,13 +401,21 @@ export function useEditorRenderer() {
           useTimelineStore.getState().setLastRenderedClockTime(clockTime)
           renderer.setPreviewFrozen(true)
 
+          const documentSize = getDocumentSize(
+            editorState.sceneConfig,
+            editorState.outputSize
+          )
           const frame = buildRendererFrame({
             assets: assetState.assets,
             audio: selectAudioModulationInput(useAudioStore.getState()),
             clockTime,
             delta,
-            layers: layerState.layers,
-            outputSize: editorState.outputSize,
+            layers: withCellPaintPreview(
+              layerState.layers,
+              layerState.selectedLayerId
+            ),
+            ...(documentSize ? { logicalSize: documentSize } : {}),
+            outputSize: documentSize ?? editorState.outputSize,
             pixelRatio: getPixelRatio(),
             sceneConfig: editorState.sceneConfig,
             timeline: timelineState,
@@ -422,6 +480,9 @@ export function useEditorRenderer() {
       boot.dispose()
       unregisterFramePump?.()
       unsubscribeRenderScale?.()
+      unsubscribeZoom?.()
+      if (zoomSettleTimer !== null) clearTimeout(zoomSettleTimer)
+      unsubscribeDocument?.()
       unsubscribeSceneRevision?.()
 
       if (resizeObserver) {

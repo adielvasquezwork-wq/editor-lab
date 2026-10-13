@@ -267,7 +267,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
 
   return (
     <div className="flex w-[340px] flex-col gap-3 p-3">
-      <div className="relative overflow-hidden rounded-[14px] border border-[var(--ds-border-divider)] bg-[linear-gradient(180deg,rgb(255_255_255_/_0.045)_0%,rgb(255_255_255_/_0.018)_100%)] px-3 py-3 shadow-[inset_0_1px_0_rgb(255_255_255_/_0.05)]">
+      <div className="relative overflow-hidden rounded-[var(--ds-radius-card)] bg-[var(--skin-track)] px-3 py-3 shadow-[var(--ds-shadow-recessed)]">
         <svg
           aria-label="Easing curve editor"
           className="block select-none"
@@ -282,7 +282,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
             fill="none"
             height={INNER_SIZE}
             rx={2}
-            stroke="rgb(255 255 255 / 0.06)"
+            stroke="var(--skin-grid-line)"
             strokeWidth={1}
             width={INNER_SIZE}
             x={GRAPH_PADDING}
@@ -294,7 +294,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
             return (
               <g key={t}>
                 <line
-                  stroke="rgb(255 255 255 / 0.04)"
+                  stroke="var(--skin-grid-line)"
                   strokeWidth={1}
                   x1={gx}
                   x2={gx}
@@ -302,7 +302,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                   y2={GRAPH_SIZE - GRAPH_PADDING}
                 />
                 <line
-                  stroke="rgb(255 255 255 / 0.04)"
+                  stroke="var(--skin-grid-line)"
                   strokeWidth={1}
                   x1={GRAPH_PADDING}
                   x2={GRAPH_SIZE - GRAPH_PADDING}
@@ -314,7 +314,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
           })}
 
           <line
-            stroke="rgb(255 255 255 / 0.08)"
+            stroke="var(--ds-border-active)"
             strokeDasharray="3 3"
             strokeWidth={1}
             x1={sx}
@@ -326,7 +326,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
           {isStep ? (
             <>
               <line
-                stroke="rgb(255 255 255 / 0.85)"
+                stroke="var(--ds-color-text-primary)"
                 strokeLinecap="round"
                 strokeWidth={2}
                 x1={sx}
@@ -335,7 +335,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                 y2={sy}
               />
               <line
-                stroke="rgb(255 255 255 / 0.85)"
+                stroke="var(--ds-color-text-primary)"
                 strokeDasharray="3 2"
                 strokeLinecap="round"
                 strokeWidth={1.5}
@@ -348,7 +348,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
           ) : (
             <>
               <line
-                stroke="rgb(255 255 255 / 0.25)"
+                stroke="var(--ds-color-text-muted)"
                 strokeWidth={1}
                 x1={sx}
                 x2={p1x}
@@ -356,7 +356,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                 y2={p1y}
               />
               <line
-                stroke="rgb(255 255 255 / 0.25)"
+                stroke="var(--ds-color-text-muted)"
                 strokeWidth={1}
                 x1={ex}
                 x2={p2x}
@@ -367,33 +367,32 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
               <path
                 d={buildCurvePath(cp)}
                 fill="none"
-                stroke="rgb(255 255 255 / 0.85)"
+                stroke="var(--ds-color-text-primary)"
                 strokeLinecap="round"
                 strokeWidth={2}
               />
 
-              {/* Endpoints */}
-              <circle cx={sx} cy={sy} fill="rgb(255 255 255 / 0.5)" r={3} />
-              <circle cx={ex} cy={ey} fill="rgb(255 255 255 / 0.5)" r={3} />
+              <circle cx={sx} cy={sy} fill="var(--ds-color-text-tertiary)" r={3} />
+              <circle cx={ex} cy={ey} fill="var(--ds-color-text-tertiary)" r={3} />
 
               <circle
                 className="cursor-grab active:cursor-grabbing"
                 cx={p1x}
                 cy={p1y}
-                fill="white"
+                fill="var(--skin-handle)"
                 onPointerDown={handleStartDrag("p1")}
                 r={5}
-                stroke="rgb(0 0 0 / 0.3)"
+                stroke="var(--ds-border-active)"
                 strokeWidth={1}
               />
               <circle
                 className="cursor-grab active:cursor-grabbing"
                 cx={p2x}
                 cy={p2y}
-                fill="white"
+                fill="var(--skin-handle)"
                 onPointerDown={handleStartDrag("p2")}
                 r={5}
-                stroke="rgb(0 0 0 / 0.3)"
+                stroke="var(--ds-border-active)"
                 strokeWidth={1}
               />
             </>
@@ -416,14 +415,14 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
         </div>
       </div>
 
-      <div className="max-h-[272px] overflow-y-auto rounded-[14px] border border-[var(--ds-border-divider)] bg-[linear-gradient(180deg,rgb(255_255_255_/_0.03)_0%,rgb(255_255_255_/_0.015)_100%)] px-3 py-3">
+      <div className="max-h-[272px] overflow-y-auto rounded-[var(--ds-radius-card)] bg-[var(--ds-color-card)] px-3 py-3 shadow-[var(--skin-card-shadow)]">
         <div className="flex flex-col gap-4">
           <button
             className={cn(
-              "inline-flex items-center gap-2 self-start rounded-[10px] border px-2.5 py-1.5 transition-[background-color,border-color,color] duration-140 ease-[var(--ease-out-cubic)] hover:bg-white/6 hover:border-white/10",
+              "inline-flex cursor-pointer items-center gap-2 self-start rounded-[var(--ds-radius-icon)] px-2.5 py-1.5 transition-[background-color,box-shadow,color] duration-140 ease-[var(--ease-out-cubic)]",
               isStep
-                ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
-                : "border-[var(--ds-border-divider)] text-[var(--ds-color-text-secondary)]"
+                ? "bg-[var(--skin-raised)] text-[var(--ds-color-text-primary)] shadow-[var(--ds-shadow-raised)]"
+                : "text-[var(--ds-color-text-secondary)] hover:bg-[var(--skin-row-hover)] hover:text-[var(--ds-color-text-primary)]"
             )}
             onClick={() => onChange({ type: "step" })}
             type="button"
@@ -443,7 +442,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                 strokeWidth={1.5}
               />
             </svg>
-            <span className="font-[var(--ds-font-mono)] text-[11px] leading-[14px]">
+            <span className="font-[var(--ds-font-sans)] text-[12px] leading-[14px]">
               Step Hold
             </span>
           </button>
@@ -462,10 +461,10 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                 {group.presets.map((preset) => (
                   <button
                     className={cn(
-                      "inline-flex items-center gap-2 rounded-[10px] border px-2.5 py-2 text-left transition-[background-color,border-color,color,transform] duration-140 ease-[var(--ease-out-cubic)] hover:bg-white/6 hover:border-white/10 active:scale-[0.985]",
+                      "inline-flex cursor-pointer items-center gap-2 rounded-[var(--ds-radius-icon)] px-2.5 py-2 text-left transition-[background-color,box-shadow,color,transform] duration-140 ease-[var(--ease-out-cubic)] active:scale-[0.985]",
                       activePreset === preset.name
-                        ? "border-[var(--ds-border-active)] bg-[var(--ds-color-surface-selected)] text-[var(--ds-color-text-primary)]"
-                        : "border-[var(--ds-border-divider)] text-[var(--ds-color-text-secondary)]"
+                        ? "bg-[var(--skin-raised)] text-[var(--ds-color-text-primary)] shadow-[var(--ds-shadow-raised)]"
+                        : "text-[var(--ds-color-text-secondary)] hover:bg-[var(--skin-row-hover)] hover:text-[var(--ds-color-text-primary)]"
                     )}
                     key={preset.name}
                     onClick={() =>
@@ -477,7 +476,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
                     type="button"
                   >
                     <PresetThumbnail cp={preset.controlPoints} />
-                    <span className="font-[var(--ds-font-mono)] text-[11px] leading-[14px]">
+                    <span className="font-[var(--ds-font-sans)] text-[12px] leading-[14px]">
                       {preset.label}
                     </span>
                   </button>
@@ -504,7 +503,7 @@ function CurveEditorContent({ easing, onChange }: CurveEditorProps) {
             </div>
 
             <input
-              className="h-10 rounded-[10px] border border-white/8 bg-black/20 px-3 font-[var(--ds-font-mono)] text-[12px] text-[var(--ds-color-text-primary)] outline-none transition-[border-color,background-color] duration-140 ease-[var(--ease-out-cubic)] placeholder:text-[var(--ds-color-text-muted)] focus:border-white/18 focus:bg-white/[0.04]"
+              className="h-[var(--ds-size-control)] rounded-[var(--ds-radius-control)] border border-transparent bg-[var(--skin-track)] px-3 font-[var(--ds-font-mono)] text-[12px] text-[var(--ds-color-text-primary)] shadow-[var(--ds-shadow-recessed)] outline-none transition-[border-color,background-color] duration-140 ease-[var(--ease-out-cubic)] placeholder:text-[var(--ds-color-text-muted)] hover:bg-[var(--skin-track-hover)] focus:border-[var(--ds-border-active)]"
               onBlur={handleInputCommit}
               onChange={handleRawInputChange}
               onKeyDown={(event) => {
@@ -551,7 +550,7 @@ export function CurveEditorPopover({ easing, onChange }: CurveEditorProps) {
           side="top"
           sideOffset={10}
         >
-          <Popover.Popup className="max-h-[min(480px,var(--available-height))] overflow-y-auto overscroll-contain rounded-[16px] border border-[var(--ds-border-panel)] bg-[rgb(18_18_22_/_0.88)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0">
+          <Popover.Popup className="max-h-[min(480px,var(--available-height))] overflow-y-auto overscroll-contain rounded-[var(--ds-radius-popup)] border border-[var(--skin-popup-border)] bg-[var(--skin-popup)] text-[var(--ds-color-text-primary)] shadow-[var(--ds-shadow-panel-dark)] backdrop-blur-[28px] backdrop-saturate-[1.4] transition-[opacity,transform] duration-160 ease-[var(--ease-out-cubic)] data-[closed]:opacity-0 data-[starting-style]:scale-[0.96] data-[starting-style]:opacity-0 data-[ending-style]:scale-[0.96] data-[ending-style]:opacity-0">
             <CurveEditorContent easing={easing} onChange={onChange} />
           </Popover.Popup>
         </Popover.Positioner>
