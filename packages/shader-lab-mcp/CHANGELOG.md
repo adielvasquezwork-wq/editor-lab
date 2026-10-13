@@ -1,5 +1,11 @@
 # @basementstudio/shader-lab-mcp
 
+## 0.2.0
+
+### Minor Changes
+
+- eb90280: `update_layer` accepts a `mask`: linear, radial, ellipse, rectangle or brush shapes in centered shorter-edge composition units, scoped to the effect or the content, with invert, rotation and feather. Pass `null` to reset it.
+
 ## 0.1.1
 
 ### Patch Changes
