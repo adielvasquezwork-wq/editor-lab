@@ -48,8 +48,10 @@ export function openAutosaveDb(): Promise<IDBDatabase | null> {
   opening = new Promise<IDBDatabase | null>((resolve) => {
     const open = indexedDB.open(AUTOSAVE_DB_NAME, AUTOSAVE_DB_VERSION)
 
-    open.onupgradeneeded = (event) =>
-      upgrade((event.target as IDBOpenDBRequest).result)
+    open.onupgradeneeded = (event) => {
+      const db = (event.target as IDBOpenDBRequest).result
+      if (db) upgrade(db)
+    }
     open.onsuccess = () => {
       open.result.onversionchange = () => {
         open.result.close()
