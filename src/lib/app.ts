@@ -42,7 +42,7 @@ export const APP_TWITTER_IMAGES = [
   {
     alt: APP_DEFAULT_TITLE,
     height: 630,
-    url: "/opengraph-image.jpg?v=2",
+    url: "/tools/shader-lab/x-card",
     width: 1200,
   },
 ]

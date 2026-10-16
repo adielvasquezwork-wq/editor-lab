@@ -159,7 +159,7 @@
       }
     },
     {
-      "includes": ["**/opengraph-image.tsx", "**/twitter-image.tsx"],
+      "includes": ["**/opengraph-image.tsx", "**/twitter-image.tsx", "**/x-card/route.tsx"],
       "linter": {
         "rules": {
           "performance": {
