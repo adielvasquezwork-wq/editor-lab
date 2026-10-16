@@ -42,7 +42,7 @@ export const APP_TWITTER_IMAGES = [
   {
     alt: APP_DEFAULT_TITLE,
     height: 630,
-    url: "/opengraph-image.jpg",
+    url: "/opengraph-image.jpg?v=2",
     width: 1200,
   },
 ]
