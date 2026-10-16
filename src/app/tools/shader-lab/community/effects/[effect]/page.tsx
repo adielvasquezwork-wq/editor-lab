@@ -7,7 +7,7 @@ import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { SceneTag } from "@/components/community/scene-tag"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_TWITTER_HANDLE } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { getPublicScenes } from "@/lib/community/public-scenes"
 import {
@@ -68,7 +68,13 @@ export async function generateMetadata({
       ...(entry.previewSrc ? { images: [{ url: entry.previewSrc }] } : {}),
     },
     title,
-    twitter: { card: "summary_large_image", description, title },
+    twitter: {
+      card: "summary_large_image",
+      creator: APP_TWITTER_HANDLE,
+      description,
+      site: APP_TWITTER_HANDLE,
+      title,
+    },
   }
 }
 

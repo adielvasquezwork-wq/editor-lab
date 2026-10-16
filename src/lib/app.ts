@@ -38,6 +38,8 @@ export const APP_OG_IMAGES = [
   },
 ]
 
+export const APP_TWITTER_HANDLE = "@basementstudio"
+
 export const APP_TWITTER_IMAGES = [
   {
     alt: APP_DEFAULT_TITLE,

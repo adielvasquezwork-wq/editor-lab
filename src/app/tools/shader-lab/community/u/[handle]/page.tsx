@@ -5,7 +5,7 @@ import { ProfileHeader } from "@/components/community/profile-header"
 import { ProfileOwnerActions } from "@/components/community/profile-owner-actions"
 import { PublicSceneGrid } from "@/components/community/public-scene-grid"
 import { SCENE_GRID_CLASS_NAME } from "@/components/community/scene-grid"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_TWITTER_HANDLE } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { isLookupableHandle } from "@/lib/community/handle"
 import {
@@ -67,7 +67,13 @@ export async function generateMetadata({
       ? { robots: { follow: true, index: false } }
       : {}),
     title: label,
-    twitter: { card: "summary_large_image", description, title: label },
+    twitter: {
+      card: "summary_large_image",
+      creator: APP_TWITTER_HANDLE,
+      description,
+      site: APP_TWITTER_HANDLE,
+      title: label,
+    },
   }
 }
 
