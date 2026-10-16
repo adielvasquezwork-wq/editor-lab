@@ -1,6 +1,11 @@
 import type { Metadata } from "next"
 import { ShaderLabPage } from "@/components/pages/shader-lab-page"
-import { APP_BASE_URL, APP_OG_IMAGES, APP_TWITTER_IMAGES } from "@/lib/app"
+import {
+  APP_BASE_URL,
+  APP_OG_IMAGES,
+  APP_TWITTER_HANDLE,
+  APP_TWITTER_IMAGES,
+} from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { EDITOR_PATH } from "@/lib/community/scene-links"
 import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
@@ -23,8 +28,10 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    creator: APP_TWITTER_HANDLE,
     description: DESCRIPTION,
     images: APP_TWITTER_IMAGES,
+    site: APP_TWITTER_HANDLE,
   },
 }
 

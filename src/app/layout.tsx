@@ -7,6 +7,7 @@ import {
   APP_NAME,
   APP_OG_IMAGES,
   APP_TITLE_TEMPLATE,
+  APP_TWITTER_HANDLE,
   APP_TWITTER_IMAGES,
   isProductionDeployment,
 } from "@/lib/app"
@@ -53,8 +54,10 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
+    creator: APP_TWITTER_HANDLE,
     description: APP_DESCRIPTION,
     images: APP_TWITTER_IMAGES,
+    site: APP_TWITTER_HANDLE,
     title: {
       default: APP_DEFAULT_TITLE,
       template: APP_TITLE_TEMPLATE,

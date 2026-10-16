@@ -14,7 +14,7 @@ import { ShareOnXButton } from "@/components/community/share-on-x-button"
 import { ShareSceneButton } from "@/components/community/share-scene-button"
 import { ButtonLink } from "@/components/ui/button/link"
 import { Typography } from "@/components/ui/typography"
-import { APP_BASE_URL } from "@/lib/app"
+import { APP_BASE_URL, APP_TWITTER_HANDLE } from "@/lib/app"
 import { isCommunityEnabled } from "@/lib/community/config"
 import { lineageLabel } from "@/lib/community/lineage"
 import { getCommunitySceneEffects } from "@/lib/community/scene-effect-filter"
@@ -80,7 +80,13 @@ export async function generateMetadata({
       url: `${APP_BASE_URL}${scenePagePath(scene.slug)}`,
     },
     title: scene.title,
-    twitter: { card: "summary_large_image", description, title: scene.title },
+    twitter: {
+      card: "summary_large_image",
+      creator: APP_TWITTER_HANDLE,
+      description,
+      site: APP_TWITTER_HANDLE,
+      title: scene.title,
+    },
   }
 }
 
