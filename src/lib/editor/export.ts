@@ -354,8 +354,7 @@ async function prepareExportAudio(
     loop: projectState.timeline.loop,
     offsetSeconds: source.offsetSeconds,
     sourceDurationSeconds: decoded.duration,
-    startSeconds:
-      options.startTime + getEncoderPrimingSeconds(config.codec),
+    startSeconds: options.startTime + getEncoderPrimingSeconds(config.codec),
     timelineDurationSeconds: projectState.timeline.duration,
   })
 
@@ -420,10 +419,29 @@ function formatRemaining(seconds: number): string {
     : `${minutes}m ${rest.toString().padStart(2, "0")}s left`
 }
 
+export function formatRealtimeFactor(
+  framesDone: number,
+  fps: number,
+  elapsedSeconds: number
+): string | null {
+  if (!(framesDone > 0 && fps > 0 && elapsedSeconds > 0)) {
+    return null
+  }
+
+  const factor = framesDone / fps / elapsedSeconds
+
+  if (!Number.isFinite(factor)) {
+    return null
+  }
+
+  return `${factor >= 10 ? factor.toFixed(0) : factor.toFixed(1)}\u00D7 realtime`
+}
+
 function buildRenderLabel(
   done: number,
   total: number,
-  startedAt: number
+  startedAt: number,
+  fps: number
 ): string {
   const base = `Rendering ${done}/${total}`
   const elapsed = (performance.now() - startedAt) / 1000
@@ -433,8 +451,9 @@ function buildRenderLabel(
   }
 
   const remaining = formatRemaining((elapsed / done) * (total - done))
+  const speed = formatRealtimeFactor(done, fps, elapsed)
 
-  return remaining ? `${base} \u00B7 ${remaining}` : base
+  return [base, speed, remaining].filter(Boolean).join(" \u00B7 ")
 }
 
 export async function exportVideo(
@@ -471,7 +490,8 @@ async function runVideoExport(
 
   let renderCanvas: HTMLCanvasElement | null = null
   let renderer: Awaited<ReturnType<typeof createExportRenderer>> | null = null
-  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null = null
+  let encoder: Awaited<ReturnType<typeof createVideoExportEncoder>> | null =
+    null
   let finalized = false
 
   try {
@@ -565,6 +585,10 @@ async function runVideoExport(
 
     const renderStartedAt = performance.now()
     let lastProgressAt = renderStartedAt
+    const encodeDirectly =
+      sourceRenderSize.width === outputCanvas.width &&
+      sourceRenderSize.height === outputCanvas.height &&
+      canWrapCanvasInVideoFrame(renderCanvas)
 
     for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
       throwIfAborted(options.abortSignal)
@@ -586,26 +610,38 @@ async function runVideoExport(
         time,
       })
 
-      cropCanvasToAspect(
-        renderCanvas,
-        outputCanvas,
-        options.aspectPreset,
-        projectState.compositionSize
-      )
-
       const frameStartUs = Math.round(
         (frameIndex * totalDurationUs) / totalFrames
       )
       const frameEndUs = Math.round(
         ((frameIndex + 1) * totalDurationUs) / totalFrames
       )
+      const frameDurationUs = Math.max(1, frameEndUs - frameStartUs)
+      // When no crop is needed the rendered canvas already is the output
+      // frame; encoding it directly skips a full-frame 2D copy per frame.
+      if (encodeDirectly) {
+        await encoder.encodeCanvasFrame(
+          renderCanvas,
+          frameIndex,
+          frameDurationUs,
+          frameStartUs
+        )
+      } else {
+        cropCanvasToAspect(
+          renderCanvas,
+          outputCanvas,
+          options.aspectPreset,
+          projectState.compositionSize
+        )
 
-      await encoder.encodeCanvasFrame(
-        outputCanvas,
-        frameIndex,
-        Math.max(1, frameEndUs - frameStartUs),
-        frameStartUs
-      )
+        await encoder.encodeCanvasFrame(
+          outputCanvas,
+          frameIndex,
+          frameDurationUs,
+          frameStartUs
+        )
+      }
+
       drainAudioThrough(frameEndUs)
       throwIfAborted(options.abortSignal)
 
@@ -618,7 +654,8 @@ async function runVideoExport(
           label: buildRenderLabel(
             frameIndex + 1,
             totalFrames,
-            renderStartedAt
+            renderStartedAt,
+            options.fps
           ),
           value: 0.08 + ((frameIndex + 1) / totalFrames) * 0.88,
         })
@@ -677,13 +714,17 @@ async function renderFrameToCanvas(
     time: number
   }
 ): Promise<void> {
-  const timelineState = structuredClone(projectState.timeline)
-  timelineState.currentTime = resolveExportTime(
-    options.time,
-    timelineState.duration,
-    timelineState.loop
-  )
-  timelineState.isPlaying = false
+  // Shallow copy: the renderer only reads the timeline, and deep-cloning
+  // every track on every exported frame is measurable on long timelines.
+  const timelineState: TimelineStateSnapshot = {
+    ...projectState.timeline,
+    currentTime: resolveExportTime(
+      options.time,
+      projectState.timeline.duration,
+      projectState.timeline.loop
+    ),
+    isPlaying: false,
+  }
 
   if (
     canvas.width !== options.renderSize.width ||
@@ -806,6 +847,15 @@ function cropCanvasToAspect(
     outputCanvas.width,
     outputCanvas.height
   )
+}
+
+function canWrapCanvasInVideoFrame(canvas: HTMLCanvasElement): boolean {
+  try {
+    new VideoFrame(canvas, { timestamp: 0 }).close()
+    return true
+  } catch {
+    return false
+  }
 }
 
 function canvasToBlob(

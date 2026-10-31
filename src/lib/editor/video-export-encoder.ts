@@ -72,6 +72,33 @@ async function abortFileStream(
   }
 }
 
+/**
+ * Frames allowed in flight inside the encoder before rendering waits. A full
+ * flush() here would drain the hardware pipeline on every frame; waiting for
+ * the queue to shrink keeps the encoder busy while the next frame renders.
+ */
+const MAX_PENDING_ENCODES = 6
+const DEQUEUE_POLL_MS = 50
+
+async function waitForEncodeQueue(
+  encoder: VideoEncoder,
+  limit: number
+): Promise<void> {
+  while (encoder.state === "configured" && encoder.encodeQueueSize > limit) {
+    await new Promise<void>((resolve) => {
+      // The poll timeout guards against a missed or never-fired dequeue
+      // event (e.g. the encoder errors out).
+      const timer = setTimeout(done, DEQUEUE_POLL_MS)
+      function done() {
+        clearTimeout(timer)
+        encoder.removeEventListener("dequeue", done)
+        resolve()
+      }
+      encoder.addEventListener("dequeue", done, { once: true })
+    })
+  }
+}
+
 const SUPPORT_PROBE_SIZE = {
   height: 720,
   width: 1280,
@@ -571,8 +598,11 @@ export async function createVideoExportEncoder(
         frame.close()
       }
 
-      if (frameIndex === 0 || encoder.encodeQueueSize > 2) {
+      if (frameIndex === 0) {
+        // Surface configuration errors on the first frame.
         await encoder.flush()
+      } else {
+        await waitForEncodeQueue(encoder, MAX_PENDING_ENCODES)
       }
 
       encoderError = getEncoderError() ?? encoderError

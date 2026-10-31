@@ -81,3 +81,6 @@ packages/shader-lab-mcp/.xmcp/
 # drizzle migrations and schema snapshots
 drizzle/
 
+
+# Local test artifacts (composition/export harnesses)
+/.context/
