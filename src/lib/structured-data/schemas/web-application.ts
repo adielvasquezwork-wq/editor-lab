@@ -1,5 +1,5 @@
 import { APP_BASE_URL } from "@/lib/app"
-import { EDITOR_PATH } from "@/lib/community/scene-links"
+import { EDITOR_PATH } from "@/lib/editor/paths"
 import {
   getEffectNames,
   PRODUCT_FACTS,

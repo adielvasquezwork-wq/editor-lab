@@ -38,8 +38,8 @@ server to your MCP client (Claude Code, Cursor, …):
 ```
 
 Then open the editor in a WebGPU browser with `?agent=1` appended — a
-deployment (`https://eng.basement.studio/tools/shader-lab?agent=1`, or any
-`*.vercel.app` preview) or a local dev server
+deployment (any `*.vercel.app` URL, e.g.
+`https://<your-project>.vercel.app/tools/shader-lab?agent=1`) or a local dev server
 (`http://localhost:3000/tools/shader-lab?agent=1`). Ask your agent for
 `get_project_state` to confirm the connection.
 
@@ -62,11 +62,11 @@ Environment variables:
 - `SHADER_LAB_AGENT_TOKEN` — optional shared secret; when set, the tab must be
   opened with `?agent=1&agentToken=<token>`
 - `SHADER_LAB_ALLOWED_ORIGINS` — extra origins allowed to connect (comma
-  separated, wildcards like `https://*.example.com` supported). Localhost,
-  production (`https://eng.basement.studio`), and Vercel previews
-  (`https://*.vercel.app`) are always allowed — deployed tabs work with zero
-  configuration. The server always runs on your machine; deployed tabs
-  connect to your own loopback.
+  separated, wildcards like `https://*.example.com` supported). Localhost
+  and Vercel deployments (`https://*.vercel.app`) are always allowed —
+  deployed tabs work with zero configuration; add a custom domain here.
+  The server always runs on your machine; deployed tabs connect to your
+  own loopback.
 
 Only connections from `localhost` origins (plus any explicitly allowed extra
 origins) are accepted, and the bridge binds to `127.0.0.1`.

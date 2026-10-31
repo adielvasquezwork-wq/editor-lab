@@ -51,13 +51,32 @@ export function buildCompositionTree<
     visible: boolean
   },
   Leaf,
->(layers: Layer[], leaf: (layer: Layer) => Leaf): CompositionNode<Leaf>[] {
+>(
+  layers: Layer[],
+  leaf: (layer: Layer) => Leaf,
+  /**
+   * Hidden leaves for which this returns true stay in the tree (disabled)
+   * instead of being dropped, so their passes and loaded media survive.
+   * Used for clips outside their time range: dropping them would dispose and
+   * reload the video at every cut.
+   */
+  retainHidden?: (layer: Layer) => boolean
+): CompositionNode<Leaf>[] {
   validateLayerHierarchy(layers)
   const root: CompositionNode<Leaf>[] = []
   const children = new Map<string, CompositionNode<Leaf>[]>()
   const hidden = new Set<string>()
   for (const layer of layers) {
-    if (!layer.visible || (layer.parentId && hidden.has(layer.parentId))) {
+    const parentHidden = Boolean(layer.parentId && hidden.has(layer.parentId))
+    if (
+      !(layer.visible || parentHidden || isLayerGroup(layer)) &&
+      retainHidden?.(layer)
+    ) {
+      const target = layer.parentId ? children.get(layer.parentId)! : root
+      target.push(leaf(layer))
+      continue
+    }
+    if (!layer.visible || parentHidden) {
       hidden.add(layer.id)
       continue
     }

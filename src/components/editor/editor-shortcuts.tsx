@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent } from "react"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { requestDraftSave } from "@/lib/editor/draft-save-bus"
+import { rippleDeleteLayers, splitLayersAt } from "@/lib/editor/clip-editing"
 import { duplicateLayers } from "@/lib/editor/duplicate-layers"
 import { isEditableTarget } from "@/lib/editor/is-editable-target"
 import { toggleLayoutGrid } from "@/lib/editor/layout-grid"
@@ -110,13 +111,33 @@ export function EditorShortcuts() {
       return
     }
 
+    // Blade: cut the selected layers at the playhead.
+    if (
+      event.key.toLowerCase() === "b" &&
+      !(event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) &&
+      selectedLayerIds.length > 0
+    ) {
+      event.preventDefault()
+      const created = splitLayersAt(
+        selectedLayerIds,
+        useTimelineStore.getState().currentTime
+      )
+      if (created.length > 0) playUISound("action.addLayer")
+      return
+    }
+
     if (
       (event.key === "Backspace" || event.key === "Delete") &&
       selectedLayerIds.length > 0 &&
       !(timelinePanelOpen && selectedKeyframeIds.length > 0)
     ) {
       event.preventDefault()
-      removeLayers(selectedLayerIds)
+      // Shift+Delete: ripple delete (close the gap left by removed clips).
+      if (event.shiftKey) {
+        rippleDeleteLayers(selectedLayerIds)
+      } else {
+        removeLayers(selectedLayerIds)
+      }
       playUISound("action.deleteLayer")
     }
   })

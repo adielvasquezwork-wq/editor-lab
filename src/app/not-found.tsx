@@ -29,7 +29,7 @@ export default function NotFound() {
           </h1>
           <p className="max-w-xl text-[15px] text-[var(--ds-color-text-secondary)] leading-6 sm:text-[16px]">
             The page you requested does not exist, or the URL drifted out of
-            sync. Head back to Shader Lab and continue from a known route.
+            sync. Head back to Editor Lab and continue from a known route.
           </p>
         </div>
 

@@ -1,4 +1,6 @@
 import { create } from "zustand"
+import type { LayerClip } from "@/lib/editor/clip"
+import type { SubtitleCue } from "@/lib/editor/subtitles"
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import {
   dropLayer,
@@ -91,6 +93,10 @@ export interface LayerStoreActions {
   setRecordingFluidLayer: (id: string | null) => void
   setLayerHue: (id: string, hue: number) => void
   setLayerLocked: (id: string, locked: boolean) => void
+  /** Sets (or clears, with null) a layer's timeline clip range. */
+  setLayerClip: (id: string, clip: LayerClip | null) => void
+  /** Sets (or clears, with null) a text layer's timed subtitle cues. */
+  setLayerSubtitles: (id: string, cues: SubtitleCue[] | null) => void
   setLayerOpacity: (id: string, opacity: number) => void
   setLayerRuntimeError: (id: string, error: string | null) => void
   setLayerSaturation: (id: string, saturation: number) => void
@@ -579,6 +585,40 @@ export const useLayerStore = create<LayerStore>((set, get) => ({
       layers: state.layers.map((layer) =>
         idSet.has(layer.id) ? { ...layer, visible } : layer
       ),
+    }))
+  },
+
+  setLayerClip: (id, clip) => {
+    set((state) => ({
+      layers: state.layers.map((layer) => {
+        if (layer.id !== id) {
+          return layer
+        }
+
+        if (!clip) {
+          const { clip: _removed, ...rest } = layer
+          return rest as EditorLayer
+        }
+
+        return { ...layer, clip: { ...clip } }
+      }),
+    }))
+  },
+
+  setLayerSubtitles: (id, cues) => {
+    set((state) => ({
+      layers: state.layers.map((layer) => {
+        if (layer.id !== id) {
+          return layer
+        }
+
+        if (!cues || layer.type !== "text") {
+          const { subtitles: _removed, ...rest } = layer
+          return rest as EditorLayer
+        }
+
+        return { ...layer, subtitles: cues.map((cue) => ({ ...cue })) }
+      }),
     }))
   },
 

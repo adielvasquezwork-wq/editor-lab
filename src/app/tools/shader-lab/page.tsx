@@ -6,14 +6,13 @@ import {
   APP_TWITTER_HANDLE,
   APP_TWITTER_IMAGES,
 } from "@/lib/app"
-import { isCommunityEnabled } from "@/lib/community/config"
-import { EDITOR_PATH } from "@/lib/community/scene-links"
+import { EDITOR_PATH } from "@/lib/editor/paths"
 import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
 import { generateWebSiteSchema } from "@/lib/structured-data/schemas/organization"
 import { generateWebApplicationSchema } from "@/lib/structured-data/schemas/web-application"
 
 const DESCRIPTION =
-  "Create, stack, and animate shader effects on images, video, text, and 3D models — free, in your browser, powered by WebGPU. Export video, publish to the community gallery, and remix any published scene."
+  "Edit documentary-style video in your browser: cut clips, mix audio, add titles and captions, and finish footage with shader effects and LUTs. Powered by WebGPU."
 
 export const metadata: Metadata = {
   alternates: {
@@ -41,7 +40,7 @@ export default function ShaderLabRoute() {
       <PageJsonLd
         nodes={[generateWebSiteSchema(), generateWebApplicationSchema()]}
       />
-      <ShaderLabPage communityEnabled={isCommunityEnabled()} />
+      <ShaderLabPage />
     </>
   )
 }

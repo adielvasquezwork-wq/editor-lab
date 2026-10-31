@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs"
+import * as Sentry from "@/lib/telemetry"
 import { gpuSnapshot } from "@/lib/webgpu-diagnostics"
 
 export type BootStage =

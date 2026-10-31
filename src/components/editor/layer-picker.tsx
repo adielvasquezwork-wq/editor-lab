@@ -1,6 +1,7 @@
 "use client"
 
 import {
+  BoxIcon,
   CameraIcon,
   CodeIcon,
   CubeIcon,
@@ -79,6 +80,7 @@ export type AddLayerAction =
   | "pixel-sorting"
   | "plotter"
   | "posterize"
+  | "color-lut"
   | "photographic-cells"
   | "displaced-rings"
   | "slice"
@@ -86,6 +88,7 @@ export type AddLayerAction =
   | "threshold"
   | "text"
   | "video"
+  | "plane"
   | "voxel"
 
 type LayerPickerCategory = "all" | LayerCatalogCategory
@@ -117,6 +120,7 @@ const CATEGORY_OPTIONS: readonly {
 const SOURCE_ICONS: readonly { icon: ElementType; value: AddLayerAction }[] = [
   { icon: ImageIcon, value: "image" },
   { icon: VideoIcon, value: "video" },
+  { icon: BoxIcon, value: "plane" },
   { icon: CubeIcon, value: "model" },
   { icon: CameraIcon, value: "live" },
   { icon: TextIcon, value: "text" },

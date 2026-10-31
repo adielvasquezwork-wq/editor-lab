@@ -180,6 +180,10 @@ declare module "three/tsl" {
   ): TSLNode
   export function sqrt(value: unknown): TSLNode
   export function pow(base: unknown, exponent: unknown): TSLNode
+  /** sRGB-encoded vec3 -> linear (exact piecewise sRGB EOTF). */
+  export function sRGBTransferEOTF(color: unknown): TSLNode
+  /** Linear vec3 -> sRGB-encoded (exact piecewise sRGB OETF). */
+  export function sRGBTransferOETF(color: unknown): TSLNode
   export function step(edge: unknown, value: unknown): TSLNode
   export function sub(left: unknown, right: unknown): TSLNode
   export function texture(value: unknown, uv?: unknown): TSLNode

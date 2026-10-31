@@ -43,6 +43,8 @@ function assert(value, label) {
 }
 const N = 64
 const SMOOTH = { controlPoints: [0.65, 0, 0.35, 1], type: "bezier" }
+// Default easing for keyframes created in the editor (house ease).
+const HOUSE = { controlPoints: [0.16, 1, 0.3, 1], type: "bezier" }
 const LINEAR = { controlPoints: [0, 0, 1, 1], type: "bezier" }
 const preset = (id) =>
   serializeGradientMapStops(GRADIENT_MAP_PRESETS.find((p) => p.id === id).stops)
@@ -247,8 +249,8 @@ function storeChecks() {
     track &&
       track.binding.valueType === "gradient" &&
       track.keyframes.length === 2 &&
-      track.keyframes.every((k) => canonical(k.easing) === canonical(SMOOTH)),
-    `Keyframe button must create a smooth ramp track: ${canonical(track)}`
+      track.keyframes.every((k) => canonical(k.easing) === canonical(HOUSE)),
+    `Keyframe button must create a house-eased ramp track: ${canonical(track)}`
   )
   const evaluate = (time) =>
     evaluateTimelineForLayers(layers(), timeline().tracks, time)[0]?.params.stops
@@ -260,13 +262,13 @@ function storeChecks() {
     ).find((l) => l.id === "map").params.stops
   for (const time of [0, 0.5, 1, 1.7, 2, 3]) {
     const progress = Math.min(1, Math.max(0, time / 2))
-    const expected = interpolateGradientMapStops(THERMAL, DUOTONE, resolveEasing(progress, SMOOTH))
+    const expected = interpolateGradientMapStops(THERMAL, DUOTONE, resolveEasing(progress, HOUSE))
     assert(evaluate(time) === expected, `Editor evaluation at ${time}: ${evaluate(time)}`)
     assert(runtimeEvaluate(time) === expected, `Runtime evaluation at ${time}`)
     samples += 2
   }
   assert(
-    resolveEasing(0.25, SMOOTH) < 0.2 &&
+    Math.abs(resolveEasing(0.25, HOUSE) - 0.25) > 0.05 &&
       evaluate(0.5) !== interpolateGradientMapStops(THERMAL, DUOTONE, 0.25),
     "Keyframe easing must shape the blend"
   )

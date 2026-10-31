@@ -2,6 +2,13 @@ import {
   getDocumentSize,
   normalizeCompositionForDocument,
 } from "@/lib/editor/composition"
+import {
+  normalizeAudioClips,
+  normalizeAudioDucking,
+} from "@/lib/editor/audio-clips"
+import { normalizeLayerClip } from "@/lib/editor/clip"
+import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
+import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
@@ -78,6 +85,7 @@ function toAssetReference(asset: EditorAsset): PresetAssetReference {
 }
 
 export function collectReferencedAssetIds(input: {
+  audioClips?: EditorAudioSnapshot["clips"]
   audioSource: EditorAudioSnapshot["source"]
   layers: readonly EditorLayer[]
 }): Set<string> {
@@ -103,6 +111,10 @@ export function collectReferencedAssetIds(input: {
 
   if (input.audioSource?.kind === "asset") {
     referenced.add(input.audioSource.assetId)
+  }
+
+  for (const clip of input.audioClips ?? []) {
+    referenced.add(clip.assetId)
   }
 
   return referenced
@@ -157,7 +169,11 @@ export function buildPublishableProjectFile(
   }
 
   const keptIds = new Set(layers.map((layer) => layer.id))
-  const referenced = collectReferencedAssetIds({ audioSource, layers })
+  const referenced = collectReferencedAssetIds({
+    audioClips: file.audio?.clips,
+    audioSource,
+    layers,
+  })
 
   return {
     ...file,
@@ -191,6 +207,7 @@ export function buildLabProjectFile(): LabProjectFile {
   const timelineState = useTimelineStore.getState()
   const audio = structuredClone(useAudioStore.getState().getSnapshot())
   const referenced = collectReferencedAssetIds({
+    audioClips: audio.clips,
     audioSource: audio.source,
     layers: layerState.layers,
   })
@@ -265,6 +282,18 @@ function normalizeProjectAudio(audio: unknown): EditorAudioSnapshot {
         ? candidate.offsetSeconds
         : 0,
     source: candidate.source ?? null,
+    ...optionalAudioClipFields(candidate),
+  }
+}
+
+function optionalAudioClipFields(
+  candidate: Partial<EditorAudioSnapshot>
+): Pick<EditorAudioSnapshot, "clips" | "ducking"> {
+  const clips = normalizeAudioClips(candidate.clips)
+  const ducking = normalizeAudioDucking(candidate.ducking)
+  return {
+    ...(clips && clips.length > 0 ? { clips } : {}),
+    ...(ducking ? { ducking } : {}),
   }
 }
 
@@ -729,7 +758,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
       : typeof sceneConfig.quantizeLevels === "number" &&
         sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
 
-  return {
+  return normalizeSceneFilmFields({
     ...DEFAULT_SCENE_CONFIG,
     ...sceneConfig,
     channelMixer: {
@@ -741,7 +770,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
       ...colorCurves,
     },
     quantizeEnabled,
-  }
+  })
 }
 
 const LEGACY_ASCII_FONT_WEIGHTS: Record<string, number> = {
@@ -842,13 +871,42 @@ export function migrateLayerParams(
   return params
 }
 
+/**
+ * Validates the optional editing fields (`clip`, `subtitles`) from untrusted
+ * project files. Absent fields stay absent so legacy projects round-trip
+ * byte-for-byte; malformed ones are dropped rather than rejecting the file.
+ */
+export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
+  if (!("clip" in layer || "subtitles" in layer)) {
+    return layer
+  }
+
+  const next: EditorLayer = { ...layer }
+
+  if ("clip" in layer) {
+    const clip = normalizeLayerClip(layer.clip)
+    if (clip) next.clip = clip
+    else delete next.clip
+  }
+
+  if ("subtitles" in layer) {
+    const cues =
+      layer.type === "text" ? normalizeSubtitleCues(layer.subtitles) : null
+    if (cues) next.subtitles = cues
+    else delete next.subtitles
+  }
+
+  return next
+}
+
 function hydrateImportedLayer(
-  layer: EditorLayer,
+  input: EditorLayer,
   assetIds: Set<string>,
   assetRefById: Map<string, LabProjectFile["assets"][number]>,
   version: number
 ): EditorLayer {
-  if (layer.unavailableLayer) return { ...layer, visible: false, locked: true }
+  if (input.unavailableLayer) return { ...input, visible: false, locked: true }
+  const layer = normalizeLayerTiming(input)
   const params = migrateLayerParams(layer, version)
   const depthRef = layer.depthAssetId
     ? assetRefById.get(layer.depthAssetId)

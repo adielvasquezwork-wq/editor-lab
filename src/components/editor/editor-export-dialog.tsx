@@ -1,5 +1,7 @@
 "use client"
 
+import { DEFAULT_AUDIO_DUCKING } from "@/lib/editor/audio-clips"
+import { planAudioMix } from "@/lib/editor/audio/mix-plan"
 import { getDocumentSize } from "@/lib/editor/composition"
 import {
   CopyIcon,
@@ -62,7 +64,6 @@ import {
   buildShaderExportConfig,
   validateShaderExportSupport,
 } from "@/lib/editor/shader-export"
-import { disarmRemixDraft } from "@/lib/editor/remix-draft"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
 import {
   type AudioAnalysisStatus,
@@ -245,7 +246,12 @@ export function EditorExportDialog({
       assets.find((asset) => asset.id === audioSourceRef.assetId)?.url ?? null
     )
   }, [assets, audioSourceRef])
-  const audioAvailable = exportAudioUrl !== null
+  const audioClips = useAudioStore((state) => state.clips)
+  const hasTimelineAudio = useMemo(
+    () => planAudioMix({ assets, audioClips, layers }).length > 0,
+    [assets, audioClips, layers]
+  )
+  const audioAvailable = exportAudioUrl !== null || hasTimelineAudio
   const [includeAudio, setIncludeAudio] = useState(true)
   const [activeTab, setActiveTab] = useState<ExportTab>("image")
   const [mounted, setMounted] = useState(false)
@@ -709,6 +715,7 @@ export function EditorExportDialog({
                 url: exportAudioUrl,
               }
             : null,
+        audioMix: includeAudio ? buildExportAudioMix() : null,
         duration: Math.max(0.25, videoDuration),
         format: videoFormat,
         fps: Math.max(1, videoFps),
@@ -861,7 +868,6 @@ export function EditorExportDialog({
       }
 
       const result = withAutosaveSuppressed(() => {
-        disarmRemixDraft()
         useDraftStore.getState().clearActiveDraft()
         useRemixOriginStore.getState().clearRemixOrigin()
 
@@ -1896,6 +1902,18 @@ function NumberInput({
       value={value}
     />
   )
+}
+
+function buildExportAudioMix() {
+  const audio = useAudioStore.getState()
+  const segments = planAudioMix({
+    assets: useAssetStore.getState().assets,
+    audioClips: audio.clips,
+    layers: useLayerStore.getState().layers,
+  })
+  return segments.length > 0
+    ? { ducking: audio.ducking ?? DEFAULT_AUDIO_DUCKING, segments }
+    : null
 }
 
 function buildRenderProjectState() {

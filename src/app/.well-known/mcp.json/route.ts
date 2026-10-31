@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { APP_BASE_URL } from "@/lib/app"
-import { EDITOR_PATH } from "@/lib/community/scene-links"
+import { EDITOR_PATH } from "@/lib/editor/paths"
 import { PRODUCT_FACTS } from "@/lib/structured-data/product-facts"
 
 /**

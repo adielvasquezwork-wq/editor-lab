@@ -1,12 +1,8 @@
 import { APP_BASE_URL } from "@/lib/app"
 import { PRODUCT_FACTS } from "@/lib/structured-data/product-facts"
 
-/**
- * The publisher's canonical `@id` lives on the studio's own domain so this
- * app's graph resolves to the same entity as basement.studio's structured
- * data (which anchors the full Organization node there).
- */
-export const ORGANIZATION_ID = "https://basement.studio/#organization"
+/** The publisher's canonical `@id`, anchored on the project repository. */
+export const ORGANIZATION_ID = `${PRODUCT_FACTS.publisher.url}#organization`
 
 export function generateOrganizationSchema() {
   const { publisher } = PRODUCT_FACTS

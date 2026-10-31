@@ -17,7 +17,6 @@ import { ModelGizmoOverlay } from "./model-gizmo-overlay"
 import { ShapeHandlesOverlay } from "./shape-handles-overlay"
 import { TextEditOverlay } from "./text-edit-overlay"
 import { TextHandlesOverlay } from "./text-handles-overlay"
-import { MadeByBasement } from "@/components/editor/made-by-basement"
 import { useMobileCanvasFit } from "@/components/editor/use-mobile-canvas-fit"
 import { useEditorRenderer } from "@/hooks/use-editor-renderer"
 import { PlusIcon, StackIcon } from "@radix-ui/react-icons"
@@ -547,12 +546,6 @@ export function EditorCanvasViewport() {
             </p>
           </div>
         </div>
-      ) : null}
-
-      {/* Rides the same signal as the boot overlay below: the credit only
-          appears once the full UI is revealed, never on the loading screen. */}
-      {fallbackMessage || (isReady && !pendingSceneSlug) ? (
-        <MadeByBasement />
       ) : null}
 
       {/* Guarded: otherwise this sweeps forever on a dead renderer. */}

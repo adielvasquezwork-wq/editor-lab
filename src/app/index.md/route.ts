@@ -1,12 +1,6 @@
 import { markdownResponse } from "@/lib/aeo/md-response"
 import { APP_BASE_URL } from "@/lib/app"
-import { isCommunityEnabled } from "@/lib/community/config"
-import {
-  ABOUT_PATH,
-  COMMUNITY_PATH,
-  EDITOR_PATH,
-  PRIVACY_PATH,
-} from "@/lib/community/scene-links"
+import { ABOUT_PATH, EDITOR_PATH, PRIVACY_PATH } from "@/lib/editor/paths"
 import {
   getLayerLabel,
   LAYER_CATALOG,
@@ -34,16 +28,12 @@ export function GET() {
   const base = APP_BASE_URL
   const sources = SOURCE_LAYER_TYPES.map(getLayerLabel).join(", ")
 
-  const body = `# Shader Lab
+  const body = `# Editor Lab
 
 ${PRODUCT_FACTS.description}
 
 - Editor: ${base}${EDITOR_PATH}
-- About & FAQ: ${base}${ABOUT_PATH}${
-    isCommunityEnabled()
-      ? `\n- Community gallery: ${base}${COMMUNITY_PATH}`
-      : ""
-  }
+- About & FAQ: ${base}${ABOUT_PATH}
 - Privacy: ${base}${PRIVACY_PATH}
 - Content index: ${base}/sitemap.md
 
@@ -63,7 +53,7 @@ ${effectLines()}
 
 ## Contact
 
-${PRODUCT_FACTS.contactEmail} — made by [${PRODUCT_FACTS.publisher.name}](${PRODUCT_FACTS.publisher.url}).
+${PRODUCT_FACTS.contactUrl} — made by [${PRODUCT_FACTS.publisher.name}](${PRODUCT_FACTS.publisher.url}).
 `
 
   return markdownResponse(body, ABOUT_PATH)

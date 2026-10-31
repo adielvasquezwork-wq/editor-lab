@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import type { LayerClip } from "@/lib/editor/clip"
 import {
   clamp,
   cos,
@@ -29,6 +30,9 @@ export class PassNode {
   readonly layerId: string
 
   enabled = true
+
+  /** Timeline range of the layer, synced by the pipeline every frame. */
+  clip: LayerClip | null = null
 
   protected inputChanged = true
 

@@ -437,6 +437,107 @@ const imageParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const planeParams = [
+  {
+    defaultValue: 0.7,
+    key: "scale",
+    label: "Scale",
+    max: 3,
+    min: 0.05,
+    step: 0.01,
+    type: "number",
+    description: "Share of the frame height the screen covers before tilting.",
+  },
+  {
+    defaultValue: [0, 0] as [number, number],
+    key: "offset",
+    label: "Offset",
+    max: 1,
+    min: -1,
+    step: 0.001,
+    type: "vec2",
+  },
+  {
+    defaultValue: -7,
+    group: "Perspective",
+    key: "rotationX",
+    label: "Tilt",
+    max: 80,
+    min: -80,
+    step: 0.5,
+    type: "number",
+  },
+  {
+    defaultValue: 24,
+    group: "Perspective",
+    key: "rotationY",
+    label: "Turn",
+    max: 80,
+    min: -80,
+    step: 0.5,
+    type: "number",
+  },
+  {
+    defaultValue: 0,
+    group: "Perspective",
+    key: "rotationZ",
+    label: "Roll",
+    max: 180,
+    min: -180,
+    step: 0.5,
+    type: "number",
+  },
+  {
+    defaultValue: 27,
+    group: "Perspective",
+    key: "fieldOfView",
+    label: "Field of View",
+    max: 120,
+    min: 5,
+    step: 0.5,
+    type: "number",
+    description: "Vertical field of view in degrees (27° ≈ a 50 mm lens on full frame).",
+  },
+  {
+    defaultValue: 24,
+    group: "Frame",
+    key: "cornerRadius",
+    label: "Corner Radius",
+    max: 200,
+    min: 0,
+    step: 1,
+    type: "number",
+    description: "In pixels at 1080p.",
+  },
+  {
+    defaultValue: 2,
+    group: "Frame",
+    key: "strokeWidth",
+    label: "Stroke",
+    max: 24,
+    min: 0,
+    step: 0.5,
+    type: "number",
+    description: "Edge line width in pixels at 1080p (0 = none).",
+  },
+  {
+    defaultValue: "#ffffff",
+    group: "Frame",
+    key: "strokeColor",
+    label: "Stroke Color",
+    type: "color",
+  },
+  {
+    defaultValue: 1,
+    key: "playbackRate",
+    label: "Playback Rate",
+    max: 4,
+    min: 0.25,
+    step: 0.05,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const videoParams = [
   ...mediaPlacementParams,
   {
@@ -558,7 +659,7 @@ const customShaderParams = [
 
 const textParams = [
   {
-    defaultValue: "basement.studio",
+    defaultValue: "Title",
     key: "text",
     label: "Text",
     maxLength: 600,
@@ -3605,6 +3706,32 @@ const posterizeParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const colorLutParams = [
+  {
+    defaultValue: "none",
+    description:
+      "Decode camera log footage to Rec.709 before the LUT. For exact color, use the camera maker's own LUT with Input set to Display.",
+    key: "inputTransform",
+    label: "Input",
+    options: [
+      { label: "Display (Rec.709 / sRGB)", value: "none" },
+      { label: "Sony S-Log3", value: "slog3" },
+      { label: "ARRI LogC3", value: "logc3" },
+      { label: "Panasonic V-Log", value: "vlog" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 1,
+    key: "intensity",
+    label: "Intensity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const thresholdParams = [
   {
     defaultValue: 0.5,
@@ -3981,6 +4108,31 @@ const grainParams = [
     type: "number",
     description:
       "0 holds one grain pattern. At 1 the grain changes 24 times a second, like film; each frame is a new pattern, never a slide.",
+  },
+  {
+    defaultValue: "24",
+    group: "Motion",
+    key: "filmRate",
+    label: "Frame Rate",
+    options: [
+      { label: "23.976", value: "23.976" },
+      { label: "24", value: "24" },
+      { label: "25", value: "25" },
+      { label: "30", value: "30" },
+    ],
+    type: "select",
+    description: "Grain frames per second at Speed 1. Match your edit's frame rate.",
+  },
+  {
+    defaultValue: 1,
+    group: "Motion",
+    key: "hold",
+    label: "Hold",
+    max: 8,
+    min: 1,
+    step: 1,
+    type: "number",
+    description: "Keep each grain pattern for this many frames (2 = grain on twos).",
   },
   {
     defaultValue: 0,
@@ -7853,6 +8005,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     params: posterizeParams,
     type: "posterize",
   },
+  "color-lut": {
+    defaultName: "Color LUT",
+    kind: "effect",
+    params: colorLutParams,
+    type: "color-lut",
+  },
   threshold: {
     defaultName: "Threshold",
     kind: "effect",
@@ -8011,6 +8169,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "source",
     params: videoParams,
     type: "video",
+  },
+  plane: {
+    defaultName: "Screen Plane",
+    kind: "source",
+    params: planeParams,
+    type: "plane",
   },
   "edge-detect": {
     defaultName: "Edge Detect",

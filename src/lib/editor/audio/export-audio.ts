@@ -1,3 +1,9 @@
+import type { AudioDucking } from "@/lib/editor/audio-clips"
+import {
+  getDialogueIntervals,
+  type MixSegment,
+} from "@/lib/editor/audio/mix-plan"
+import { scheduleMixSegment } from "@/lib/editor/audio/mix-schedule"
 import { AUDIO_SAMPLE_RATE } from "@/lib/editor/audio/bands"
 
 export const EXPORT_AUDIO_SAMPLE_RATE = AUDIO_SAMPLE_RATE
@@ -211,6 +217,72 @@ export async function renderExportAudio(
       segment.sourceStartSeconds,
       segment.durationSeconds
     )
+  }
+
+  return await context.startRendering()
+}
+
+/**
+ * Renders the export audio: the legacy single looping source (if any) plus
+ * timeline mix segments (audio clips and clipped video audio), all into one
+ * offline context. `windowStartSeconds` is the timeline second at output 0.
+ */
+export async function renderTimelineExportAudio(input: {
+  legacy: {
+    segments: readonly ExportAudioSegment[]
+    source: AudioBuffer
+  } | null
+  mix: {
+    buffers: ReadonlyMap<string, AudioBuffer>
+    ducking: AudioDucking | null
+    segments: readonly MixSegment[]
+  } | null
+  totalDurationSeconds: number
+  windowStartSeconds: number
+}): Promise<AudioBuffer> {
+  const frames = Math.max(
+    1,
+    Math.round(input.totalDurationSeconds * EXPORT_AUDIO_SAMPLE_RATE)
+  )
+  const context = new OfflineAudioContext(
+    EXPORT_AUDIO_CHANNELS,
+    frames,
+    EXPORT_AUDIO_SAMPLE_RATE
+  )
+
+  for (const segment of input.legacy?.segments ?? []) {
+    const node = context.createBufferSource()
+    node.buffer = input.legacy?.source ?? null
+    node.connect(context.destination)
+    node.start(
+      segment.outputStartSeconds,
+      segment.sourceStartSeconds,
+      segment.durationSeconds
+    )
+  }
+
+  if (input.mix) {
+    const intervals = getDialogueIntervals(input.mix.segments)
+
+    for (const segment of input.mix.segments) {
+      const buffer = input.mix.buffers.get(segment.url)
+
+      if (!buffer) {
+        continue
+      }
+
+      scheduleMixSegment({
+        buffer,
+        context,
+        contextStart: 0,
+        destination: context.destination,
+        ducking: input.mix.ducking,
+        intervals,
+        segment,
+        windowEnd: input.windowStartSeconds + input.totalDurationSeconds,
+        windowStart: input.windowStartSeconds,
+      })
+    }
   }
 
   return await context.startRendering()

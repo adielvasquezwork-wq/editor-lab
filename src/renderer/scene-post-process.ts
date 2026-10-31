@@ -1,13 +1,19 @@
 import {
+  abs,
   clamp,
   cos,
   float,
   floor,
+  length,
   max,
   min,
   mix,
   pow,
   sin,
+  smoothstep,
+  sRGBTransferEOTF,
+  sRGBTransferOETF,
+  step,
   type TSLNode,
   texture as tslTexture,
   uniform,
@@ -22,6 +28,7 @@ import {
   buildCurveLut,
   COLOR_CURVE_CHANNELS,
 } from "@/lib/color-curves"
+import { hasActiveFilmFinish } from "@/lib/editor/scene-film"
 import { buildColorMapBytes } from "@/renderer/color-map-lut"
 import type { SceneConfig } from "@/types/editor"
 
@@ -54,7 +61,23 @@ function isDefaultConfig(config: SceneConfig): boolean {
     config.clampMax === 1 &&
     !config.quantizeEnabled &&
     config.quantizeLevels === 256 &&
-    config.colorMap === null
+    config.colorMap === null &&
+    !hasActiveFilmFinish(config)
+  )
+}
+
+function srgbToLinear(color: THREE.Vector3): THREE.Vector3 {
+  const decode = (value: number) =>
+    value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4
+  return new THREE.Vector3(decode(color.x), decode(color.y), decode(color.z))
+}
+
+function hexToVector3(hex: string): THREE.Vector3 {
+  const value = Number.parseInt(hex.slice(1), 16)
+  return new THREE.Vector3(
+    ((value >> 16) & 255) / 255,
+    ((value >> 8) & 255) / 255,
+    (value & 255) / 255
   )
 }
 
@@ -90,6 +113,19 @@ export class ScenePostProcess {
   private readonly quantizeEnabledUniform: Node
   private readonly quantizeLevelsUniform: Node
   private readonly colorMapEnabledUniform: Node
+  private readonly outputAspectUniform: Node
+  private readonly vignetteAmountUniform: Node
+  private readonly vignetteInnerUniform: Node
+  private readonly vignetteOuterUniform: Node
+  private readonly vignetteRoundnessUniform: Node
+  private readonly letterboxEnabledUniform: Node
+  private readonly letterboxAspectUniform: Node
+  private readonly letterboxColorUniform: Node
+  private readonly splitShadowColorUniform: Node
+  private readonly splitShadowAmountUniform: Node
+  private readonly splitHighlightColorUniform: Node
+  private readonly splitHighlightAmountUniform: Node
+  private readonly splitBalanceUniform: Node
   private readonly colorMapTexture: THREE.DataTexture
   private readonly curveTextures: Record<
     "rgb" | "red" | "green" | "blue",
@@ -126,6 +162,19 @@ export class ScenePostProcess {
     this.quantizeEnabledUniform = uniform(0)
     this.quantizeLevelsUniform = uniform(256)
     this.colorMapEnabledUniform = uniform(0)
+    this.outputAspectUniform = uniform(16 / 9)
+    this.vignetteAmountUniform = uniform(0)
+    this.vignetteInnerUniform = uniform(0.35)
+    this.vignetteOuterUniform = uniform(1.05)
+    this.vignetteRoundnessUniform = uniform(0.5)
+    this.letterboxEnabledUniform = uniform(0)
+    this.letterboxAspectUniform = uniform(2.39)
+    this.letterboxColorUniform = uniform(new THREE.Vector3(0, 0, 0))
+    this.splitShadowColorUniform = uniform(new THREE.Vector3(0.5, 0.5, 0.5))
+    this.splitShadowAmountUniform = uniform(0)
+    this.splitHighlightColorUniform = uniform(new THREE.Vector3(0.5, 0.5, 0.5))
+    this.splitHighlightAmountUniform = uniform(0)
+    this.splitBalanceUniform = uniform(0)
     this.curveTextures = {
       blue: new THREE.DataTexture(
         buildCurveLut([], CURVE_LUT_SIZE),
@@ -245,7 +294,48 @@ export class ScenePostProcess {
       this.colorMapEnabledUniform.value = 0
     }
 
+    const vignette = config.vignette
+    this.vignetteAmountUniform.value = vignette ? vignette.amount : 0
+    if (vignette) {
+      this.vignetteInnerUniform.value = vignette.inner
+      this.vignetteOuterUniform.value = Math.max(vignette.outer, vignette.inner + 0.01)
+      this.vignetteRoundnessUniform.value = vignette.roundness
+    }
+
+    const letterbox = config.letterbox
+    this.letterboxEnabledUniform.value = letterbox ? 1 : 0
+    if (letterbox) {
+      this.letterboxAspectUniform.value = letterbox.aspect
+      // Bars are written into the linear pipeline; encode back exactly.
+      ;(this.letterboxColorUniform.value as THREE.Vector3).copy(
+        srgbToLinear(hexToVector3(letterbox.color))
+      )
+    }
+
+    const splitTone = config.splitTone
+    this.splitShadowAmountUniform.value = splitTone ? splitTone.shadowAmount : 0
+    this.splitHighlightAmountUniform.value = splitTone
+      ? splitTone.highlightAmount
+      : 0
+    if (splitTone) {
+      ;(this.splitShadowColorUniform.value as THREE.Vector3).copy(
+        hexToVector3(splitTone.shadowColor)
+      )
+      ;(this.splitHighlightColorUniform.value as THREE.Vector3).copy(
+        hexToVector3(splitTone.highlightColor)
+      )
+      this.splitBalanceUniform.value = splitTone.balance
+    }
+
     return true
+  }
+
+  /** Output width/height, for letterbox bars and vignette shape. */
+  setOutputAspect(aspect: number): boolean {
+    const next = Number.isFinite(aspect) && aspect > 0 ? aspect : 1
+    if (next === this.outputAspectUniform.value) return false
+    this.outputAspectUniform.value = next
+    return this.active
   }
 
   render(
@@ -265,6 +355,91 @@ export class ScenePostProcess {
       this.curveTextures[channelId].dispose()
     }
     this.colorMapTexture.dispose()
+  }
+
+  /**
+   * Split tone, vignette and letterbox. Neutral (exact passthrough) when
+   * their amounts are zero / disabled, so projects without them are
+   * unchanged.
+   */
+  private applyFilmFinish(input: Node): Node {
+    // The pipeline works in linear light (half-float targets, sRGB textures
+    // decoded on sampling, sRGB encoding only at the canvas).
+    let color: Node = input
+    const lumaOf = (value: Node) =>
+      float(value.x)
+        .mul(float(0.2126))
+        .add(float(value.y).mul(float(0.7152)))
+        .add(float(value.z).mul(float(0.0722)))
+
+    // Split tone, in display (sRGB-encoded) space so the pivot and the
+    // tint colors behave perceptually: shift chroma toward each tint without
+    // changing luminance. Balance moves the pivot.
+    const display = sRGBTransferOETF(clamp(color, 0, 1))
+    const luma = lumaOf(display)
+    const pivot = float(0.5).add(this.splitBalanceUniform.mul(0.25))
+    const shadowWeight = float(1).sub(smoothstep(float(0), pivot, luma))
+    const highlightWeight = smoothstep(pivot, float(1), luma)
+    const shadowTint = this.splitShadowColorUniform
+    const highlightTint = this.splitHighlightColorUniform
+    const toned = clamp(
+      display
+        .add(
+          shadowTint
+            .sub(vec3(lumaOf(shadowTint)))
+            .mul(shadowWeight.mul(this.splitShadowAmountUniform))
+        )
+        .add(
+          highlightTint
+            .sub(vec3(lumaOf(highlightTint)))
+            .mul(highlightWeight.mul(this.splitHighlightAmountUniform))
+        ),
+      0,
+      1
+    )
+    const splitActive = step(
+      float(0.0001),
+      max(this.splitShadowAmountUniform, this.splitHighlightAmountUniform)
+    )
+    color = mix(color, sRGBTransferEOTF(toned), splitActive)
+
+    // Vignette: a true exposure change in stops (values are linear).
+    const centered = uv().sub(0.5).mul(2)
+    const stretch = mix(
+      float(1),
+      this.outputAspectUniform,
+      this.vignetteRoundnessUniform
+    )
+    const shaped = vec2(centered.x.mul(stretch), centered.y)
+    const distance = length(shaped).div(length(vec2(stretch, float(1))))
+    const mask = smoothstep(
+      this.vignetteInnerUniform,
+      this.vignetteOuterUniform,
+      distance
+    )
+    color = color.mul(
+      pow(float(2), this.vignetteAmountUniform.mul(mask).negate())
+    )
+
+    // Letterbox (bars top/bottom when the target is wider than the frame,
+    // pillarbox when narrower). Last, so bars stay a pure color.
+    const frameAspect = this.outputAspectUniform
+    const target = this.letterboxAspectUniform
+    const barHeight = max(float(1).sub(frameAspect.div(target)), float(0)).mul(
+      0.5
+    )
+    const barWidth = max(float(1).sub(target.div(frameAspect)), float(0)).mul(
+      0.5
+    )
+    const fromCenter = abs(uv().sub(0.5))
+    const inBar = max(
+      step(float(0.5).sub(barHeight), fromCenter.y),
+      step(float(0.5).sub(barWidth), fromCenter.x)
+    )
+    const barActive = this.letterboxEnabledUniform.mul(
+      max(step(float(0.0001), barHeight), step(float(0.0001), barWidth))
+    )
+    return mix(color, this.letterboxColorUniform, inBar.mul(barActive))
   }
 
   private buildColorNode(): Node {
@@ -483,6 +658,8 @@ export class ScenePostProcess {
       vec3(lutSample.r, lutSample.g, lutSample.b),
       this.colorMapEnabledUniform
     )
+
+    color = this.applyFilmFinish(clamp(color, 0, 1))
 
     // Final clamp
     color = clamp(color, 0, 1)

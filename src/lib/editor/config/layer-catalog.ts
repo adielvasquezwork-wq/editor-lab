@@ -228,6 +228,12 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Plotter",
     previewSrc: "/examples/effects/plotter.webp",
   },
+  "color-lut": {
+    description:
+      "Applies a .cube LUT, with optional S-Log3 / LogC3 / V-Log to Rec.709 conversion for camera footage.",
+    category: "core",
+    label: "Color LUT",
+  },
   posterize: {
     description:
       "Flattens the image into a few bands of color.",
@@ -317,6 +323,11 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   video: {
     label: "Video",
   },
+  plane: {
+    description:
+      "Shows an image or video on a screen tilted in 3D perspective, with rounded corners, a stroke, and depth for Focus Blur.",
+    label: "Screen Plane",
+  },
   voxel: {
     description:
       "Rebuilds the image from isometric cubes, with brighter areas rising higher.",
@@ -344,6 +355,7 @@ export const EFFECT_PICKER_ORDER = [
   "pixelation",
   "voxel",
   "posterize",
+  "color-lut",
   "threshold",
   "gradient-map",
   "lumen-print",

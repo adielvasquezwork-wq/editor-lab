@@ -1,6 +1,6 @@
 "use client"
 
-import * as Sentry from "@sentry/nextjs"
+import * as Sentry from "@/lib/telemetry"
 import { useEffect } from "react"
 import "@/app/globals.css"
 

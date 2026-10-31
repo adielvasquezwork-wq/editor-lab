@@ -1,5 +1,6 @@
 "use client"
 
+import type { AudioClip, AudioDucking } from "@/lib/editor/audio-clips"
 import { create } from "zustand"
 import { analyzeAudioSource } from "@/lib/editor/audio/analyze-client"
 import {
@@ -46,10 +47,18 @@ export interface AudioStoreState {
   source: AudioSourceRef | null
   spectrogram: AudioSpectrogram | null
   status: AudioAnalysisStatus
+  /** Timeline audio clips (music, VO, ambience). */
+  clips: AudioClip[]
+  /** Explicit ducking setting, or null for defaults (not serialized). */
+  ducking: AudioDucking | null
 }
 
 export interface AudioStoreActions {
   addLink: (input: CreateAudioLinkInput) => AudioLink
+  addAudioClip: (clip: AudioClip) => void
+  removeAudioClips: (ids: string[]) => void
+  setDucking: (ducking: AudioDucking | null) => void
+  updateAudioClip: (id: string, patch: Partial<Omit<AudioClip, "id">>) => void
   analyze: (url: string) => Promise<void>
   cancelAnalysis: () => void
   clearSource: () => void
@@ -132,6 +141,15 @@ export function selectAudioModulationInput(
 
 const BLANK_PROJECT_AUDIO = getBlankProjectAudio()
 
+function snapshotClipFields(
+  snapshot: EditorAudioSnapshot
+): Pick<AudioStoreState, "clips" | "ducking"> {
+  return {
+    clips: (snapshot.clips ?? []).map((clip) => ({ ...clip })),
+    ducking: snapshot.ducking ? { ...snapshot.ducking } : null,
+  }
+}
+
 export const useAudioStore = create<AudioStore>((set, get) => ({
   analysisProgress: 0,
   bands: BLANK_PROJECT_AUDIO.bands,
@@ -142,6 +160,31 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   source: BLANK_PROJECT_AUDIO.source,
   spectrogram: null,
   status: "idle",
+  clips: [],
+  ducking: null,
+
+  addAudioClip: (clip) => {
+    set((state) => ({ clips: [...state.clips, { ...clip }] }))
+  },
+
+  removeAudioClips: (ids) => {
+    const removed = new Set(ids)
+    set((state) => ({
+      clips: state.clips.filter((clip) => !removed.has(clip.id)),
+    }))
+  },
+
+  setDucking: (ducking) => {
+    set({ ducking: ducking ? { ...ducking } : null })
+  },
+
+  updateAudioClip: (id, patch) => {
+    set((state) => ({
+      clips: state.clips.map((clip) =>
+        clip.id === id ? { ...clip, ...patch, id } : clip
+      ),
+    }))
+  },
 
   addLink: (input) => {
     const link = createAudioLink(input)
@@ -232,9 +275,18 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
   },
 
   getSnapshot: () => {
-    const { bands, links, offsetSeconds, source } = get()
+    const { bands, clips, ducking, links, offsetSeconds, source } = get()
 
-    return { bands, links, offsetSeconds, source }
+    // Optional fields are omitted when unset so legacy snapshots (and their
+    // history/autosave signatures) are unchanged.
+    return {
+      bands,
+      links,
+      offsetSeconds,
+      source,
+      ...(clips.length > 0 ? { clips } : {}),
+      ...(ducking ? { ducking } : {}),
+    }
   },
 
   removeLink: (id) => {
@@ -263,6 +315,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       source: snapshot.source,
       spectrogram: null,
       status: snapshot.source ? "missing-source" : "idle",
+      ...snapshotClipFields(snapshot),
     })
   },
 
@@ -283,6 +336,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
         source: snapshot.source,
         spectrogram: null,
         status: snapshot.source ? "missing-source" : "idle",
+        ...snapshotClipFields(snapshot),
       })
       return
     }
@@ -298,6 +352,7 @@ export const useAudioStore = create<AudioStore>((set, get) => ({
       links: [...snapshot.links],
       offsetSeconds: snapshot.offsetSeconds,
       source: snapshot.source,
+      ...snapshotClipFields(snapshot),
     })
   },
 

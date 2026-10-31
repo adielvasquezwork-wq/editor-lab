@@ -28,6 +28,12 @@ import type { LayerParameterValues } from "@/types/editor"
 type Node = TSLNode
 
 const FILM_FRAME_RATE = 24
+const FILM_RATES: Record<string, number> = {
+  "23.976": 24000 / 1001,
+  "24": 24,
+  "25": 25,
+  "30": 30,
+}
 const FRAME_CYCLE = 4096
 const NOISE_SIZE = 256
 const LATTICES = [0.61, 2.7044, 4.7988] as const
@@ -101,6 +107,10 @@ export class GrainPass extends PassNode {
   private readonly placeholder = new THREE.Texture()
   private readonly source: Node
   private speed = 1
+  /** Grain frames per second (24 matches the legacy behaviour). */
+  private filmRate = FILM_FRAME_RATE
+  /** Keep each grain pattern for this many frames ("on 2s"). */
+  private hold = 1
   private grainClock = 0
 
   constructor(layerId: string) {
@@ -150,6 +160,8 @@ export class GrainPass extends PassNode {
       BLEND_MODES[typeof params.blend === "string" ? params.blend : ""] ?? 0
     this.seedUniform.value = readNumber(params.seed, 0, 0, 9999)
     this.speed = readNumber(params.speed, 1, 0, 2.5)
+    this.filmRate = FILM_RATES[String(params.filmRate)] ?? FILM_FRAME_RATE
+    this.hold = Math.round(readNumber(params.hold, 1, 1, 8))
   }
 
   override needsContinuousRender(): boolean {
@@ -160,7 +172,8 @@ export class GrainPass extends PassNode {
     this.frameUniform.value =
       this.speed > 0.0001
         ? Math.floor(
-            Math.max(0, this.grainClock) * FILM_FRAME_RATE * this.speed
+            (Math.max(0, this.grainClock) * this.filmRate * this.speed) /
+              this.hold
           ) % FRAME_CYCLE
         : 0
   }

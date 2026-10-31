@@ -1,3 +1,6 @@
+import type { AudioClip, AudioDucking } from "@/lib/editor/audio-clips"
+import type { LayerClip } from "@/lib/editor/clip"
+import type { SubtitleCue } from "@/lib/editor/subtitles"
 import type {
   ColorCurve as _ColorCurve,
   ColorCurveChannelId as _ColorCurveChannelId,
@@ -23,6 +26,7 @@ export type LayerKind = (typeof LAYER_KINDS)[number]
 export const SOURCE_LAYER_TYPES = [
   "image",
   "video",
+  "plane",
   "gradient",
   "shape",
   "text",
@@ -48,6 +52,7 @@ export const EFFECT_LAYER_TYPES = [
   "pattern",
   "plotter",
   "posterize",
+  "color-lut",
   "threshold",
   "gradient-map",
   "lumen-print",
@@ -331,6 +336,19 @@ export interface BaseLayer {
   /** Original data for a layer unavailable in this version; never rendered. */
   unavailableLayer?: Record<string, unknown>
 
+  /**
+   * Timeline range this layer occupies (video-editing clip). Absent/null keeps
+   * the legacy behaviour: the layer is always present and video loops.
+   */
+  clip?: LayerClip | null
+
+  /**
+   * Text layers only: timed captions (SRT/VTT). When present the layer shows
+   * the cue at the playhead instead of its static text, and hides between
+   * cues.
+   */
+  subtitles?: SubtitleCue[] | null
+
   parentId?: string | null
   assetId: string | null
   depthAssetId?: string | null
@@ -487,6 +505,10 @@ export interface EditorAudioSnapshot {
   links: AudioLink[]
   offsetSeconds: number
   source: AudioSourceRef | null
+  /** Timeline audio clips (music, VO, ambience). Omitted when empty. */
+  clips?: AudioClip[]
+  /** Music/ambience ducking under dialogue. Omitted = defaults. */
+  ducking?: AudioDucking
 }
 
 export type SidebarView = "properties" | "scene"
@@ -541,6 +563,57 @@ export interface SceneConfig {
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
   grid?: LayoutGrid
+  /** Edge darkening in photographic stops. Absent = off. */
+  vignette?: SceneVignette | undefined
+  /** Cinema bars to a target aspect (applied last). Absent = off. */
+  letterbox?: SceneLetterbox | undefined
+  /** Tints shadows and highlights separately. Absent = off. */
+  splitTone?: SceneSplitTone | undefined
+}
+
+export interface SceneVignette {
+  /** Stops of darkening at the edge, 0..4 (linear light). */
+  amount: number
+  /** Normalized distance where darkening starts, 0..1. */
+  inner: number
+  /** Normalized distance where it reaches full strength, 0..1.5. */
+  outer: number
+  /** 0 follows the frame shape, 1 is a circle. */
+  roundness: number
+}
+
+export interface SceneLetterbox {
+  /** Target width/height (e.g. 2, 2.39). Wider than the frame adds bars top/bottom; narrower adds side bars. */
+  aspect: number
+  color: string
+}
+
+export interface SceneSplitTone {
+  balance: number
+  highlightAmount: number
+  highlightColor: string
+  shadowAmount: number
+  shadowColor: string
+}
+
+export const DEFAULT_SCENE_VIGNETTE: SceneVignette = {
+  amount: 1,
+  inner: 0.35,
+  outer: 1.05,
+  roundness: 0.5,
+}
+
+export const DEFAULT_SCENE_LETTERBOX: SceneLetterbox = {
+  aspect: 2.39,
+  color: "#000000",
+}
+
+export const DEFAULT_SCENE_SPLIT_TONE: SceneSplitTone = {
+  balance: 0,
+  highlightAmount: 0.25,
+  highlightColor: "#ff9fd0",
+  shadowAmount: 0.25,
+  shadowColor: "#1f8f8f",
 }
 
 export interface LayoutGrid {

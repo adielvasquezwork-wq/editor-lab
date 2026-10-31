@@ -1,11 +1,9 @@
 "use client"
 
-import type { Route } from "next"
 import {
   DownloadIcon,
   DragHandleDots2Icon,
   GearIcon,
-  GlobeIcon,
   GitHubLogoIcon,
   GridIcon,
   ResetIcon,
@@ -24,7 +22,6 @@ import { AgentConnectPanel } from "@/components/editor/agent-connect-panel"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { fitMobileCanvas } from "@/components/editor/use-mobile-canvas-fit"
 import { Button } from "@/components/ui/button"
-import { ButtonLink } from "@/components/ui/button/link"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { IconButtonLink } from "@/components/ui/icon-button/link"
@@ -32,8 +29,6 @@ import { HoverTooltip } from "@/components/ui/tooltip"
 import { Typography } from "@/components/ui/typography"
 import { playUISound } from "@/lib/audio/shader-lab-sounds"
 import { cn } from "@/lib/cn"
-import { COMMUNITY_PATH } from "@/lib/community/scene-links"
-import { useCommunityUnread } from "@/lib/community/use-community-unread"
 import {
   applyEditorHistorySnapshot,
   buildEditorHistorySnapshot,
@@ -53,38 +48,6 @@ import {
   useTimelineStore,
 } from "@/store"
 
-const PublishDialog = dynamic(
-  () =>
-    import("@/components/community/publish-dialog").then(
-      (mod) => mod.PublishDialog
-    ),
-  { ssr: false }
-)
-
-const AuthMenu = dynamic(
-  () => import("@/components/community/auth-menu").then((mod) => mod.AuthMenu),
-  { ssr: false }
-)
-
-const loadCommunityModal = () =>
-  import("@/components/community/community-modal")
-
-/* Shown while the community-modal chunk is downloading so the backdrop
- * appears on the first frame after click. Matches the modal's own scrim,
- * which mounts fully opaque (AnimatePresence initial={false}). */
-function CommunityModalLoadingScrim() {
-  return (
-    <div
-      aria-hidden="true"
-      className="fixed inset-0 z-90 bg-[rgb(4_5_7_/_0.56)]"
-    />
-  )
-}
-
-const CommunityModal = dynamic(
-  () => loadCommunityModal().then((mod) => mod.CommunityModal),
-  { loading: CommunityModalLoadingScrim, ssr: false }
-)
 
 const EditorExportDialog = dynamic(
   () => import("./editor-export-dialog").then((mod) => mod.EditorExportDialog),
@@ -92,7 +55,7 @@ const EditorExportDialog = dynamic(
 )
 
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
-const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
+const GITHUB_REPO_URL = "https://github.com/adielvasquezwork-wq/editor-lab"
 
 function TopbarDivider({ className }: { className?: string }) {
   return (
@@ -110,7 +73,7 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <HoverTooltip content="GitHub" side={mobile ? "top" : "bottom"}>
       <IconButtonLink
-        aria-label="Open Shader Lab on GitHub"
+        aria-label="Open Editor Lab on GitHub"
         className={mobile ? "size-8" : "h-7 w-7"}
         href={GITHUB_REPO_URL}
         rel="noreferrer"
@@ -122,11 +85,7 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   )
 }
 
-export function EditorTopBar({
-  communityEnabled,
-}: {
-  communityEnabled: boolean
-}) {
+export function EditorTopBar() {
   const immersiveCanvas = useEditorStore((state) => state.immersiveCanvas)
   const mobilePanel = useEditorStore((state) => state.mobilePanel)
   const rightSidebarVisible = useEditorStore((state) => state.sidebars.right)
@@ -164,13 +123,6 @@ export function EditorTopBar({
 
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false)
   const [hasOpenedExport, setHasOpenedExport] = useState(false)
-  const [communityOpen, setCommunityOpen] = useState(false)
-  const [publishOpen, setPublishOpen] = useState(false)
-  const [hasOpenedPublish, setHasOpenedPublish] = useState(false)
-  const [publishedSlug, setPublishedSlug] = useState<string | null>(null)
-  const [hasOpenedCommunity, setHasOpenedCommunity] = useState(false)
-  const { markSeen: markCommunitySeen, unread: communityUnread } =
-    useCommunityUnread(communityEnabled)
 
   const handleExportDialogOpenChange = useCallback((open: boolean) => {
     if (open) {
@@ -378,7 +330,9 @@ export function EditorTopBar({
         state.bands === previousState.bands &&
         state.links === previousState.links &&
         state.offsetSeconds === previousState.offsetSeconds &&
-        state.source === previousState.source
+        state.source === previousState.source &&
+        state.clips === previousState.clips &&
+        state.ducking === previousState.ducking
       ) {
         return
       }
@@ -393,6 +347,10 @@ export function EditorTopBar({
           links: previousState.links,
           offsetSeconds: previousState.offsetSeconds,
           source: previousState.source,
+          ...(previousState.clips.length > 0
+            ? { clips: previousState.clips }
+            : {}),
+          ...(previousState.ducking ? { ducking: previousState.ducking } : {}),
         }
       )
       const nextSnapshot = buildEditorHistorySnapshotFromState(
@@ -403,6 +361,8 @@ export function EditorTopBar({
           links: state.links,
           offsetSeconds: state.offsetSeconds,
           source: state.source,
+          ...(state.clips.length > 0 ? { clips: state.clips } : {}),
+          ...(state.ducking ? { ducking: state.ducking } : {}),
         }
       )
 
@@ -675,34 +635,6 @@ export function EditorTopBar({
               <TopbarDivider />
               <GitHubStarLink />
               <AgentConnectPanel />
-              {communityEnabled ? (
-                <>
-                  <span className="relative inline-flex">
-                    <Button
-                      className="h-7 gap-1.5"
-                      onClick={() => {
-                        setHasOpenedCommunity(true)
-                        setCommunityOpen(true)
-                        markCommunitySeen()
-                      }}
-                      onFocus={() => void loadCommunityModal()}
-                      onPointerEnter={() => void loadCommunityModal()}
-                      size="compact"
-                      variant="secondary"
-                    >
-                      <GlobeIcon height={14} width={14} />
-                      Community
-                    </Button>
-                    {communityUnread ? (
-                      <span
-                        aria-hidden="true"
-                        className="pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)] bg-emerald-400"
-                      />
-                    ) : null}
-                  </span>
-                  <AuthMenu newTab />
-                </>
-              ) : null}
             </div>
           </GlassPanel>
         )}
@@ -797,7 +729,7 @@ export function EditorTopBar({
                 )}
               </IconButton>
               <IconButtonLink
-                aria-label="Open Shader Lab on GitHub"
+                aria-label="Open Editor Lab on GitHub"
                 className="size-full min-h-11"
                 href={GITHUB_REPO_URL}
                 rel="noreferrer"
@@ -806,61 +738,9 @@ export function EditorTopBar({
                 <GitHubLogoIcon height={18} width={18} />
               </IconButtonLink>
               <ThemeToggleButton mobile />
-              {communityEnabled ? (
-                <span className="relative col-span-4 inline-flex">
-                  <ButtonLink
-                    className="min-h-11 w-full gap-2"
-                    href={COMMUNITY_PATH as Route}
-                    onClick={() => markCommunitySeen()}
-                    variant="secondary"
-                  >
-                    <GlobeIcon height={16} width={16} />
-                    Community
-                  </ButtonLink>
-                  {communityUnread ? (
-                    <span
-                      aria-hidden="true"
-                      className="pointer-events-none absolute -top-0.5 -right-0.5 size-2 rounded-full border border-[var(--ds-color-canvas)] bg-emerald-400"
-                    />
-                  ) : null}
-                </span>
-              ) : null}
             </div>
           </GlassPanel>
         </div>
-      ) : null}
-
-      {hasOpenedPublish ? (
-        <PublishDialog
-          onOpenChange={setPublishOpen}
-          onPublished={(slug) => {
-            setPublishOpen(false)
-            setPublishedSlug(slug)
-            setHasOpenedCommunity(true)
-            setCommunityOpen(true)
-          }}
-          open={publishOpen}
-        />
-      ) : null}
-
-      {hasOpenedCommunity ? (
-        <CommunityModal
-          focusSlug={publishedSlug}
-          onOpenChange={(next) => {
-            setCommunityOpen(next)
-
-            if (!next) {
-              setPublishedSlug(null)
-            }
-          }}
-          onRequestPublish={() => {
-            setPublishedSlug(null)
-            setCommunityOpen(false)
-            setHasOpenedPublish(true)
-            setPublishOpen(true)
-          }}
-          open={communityOpen}
-        />
       ) : null}
 
       {hasOpenedExport ? (

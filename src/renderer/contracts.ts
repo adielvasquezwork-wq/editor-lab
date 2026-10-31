@@ -8,6 +8,8 @@ import {
   stripMaskParams,
 } from "@/lib/editor/mask-animation"
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
+import { getClipFadeFactor, isTimeInClip } from "@/lib/editor/clip"
+import { getActiveSubtitleText } from "@/lib/editor/subtitles"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
 import type { CompositionNode } from "@/renderer/composition-tree"
@@ -114,11 +116,35 @@ export function buildRendererFrame(
     evaluatedLayers.map((state) => [state.layerId, state])
   )
 
+  // Layers hidden only because the playhead is outside their clip (or
+  // between subtitle cues). They are kept in the tree, disabled.
+  const timedOutIds = new Set<string>()
   const layers = input.layers.map((layer) => {
     const evaluation = evaluatedById.get(layer.id)
-    const params = evaluation
+    const evaluatedParams = evaluation
       ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
       : getCachedClone(layer.params)
+    const subtitleText =
+      layer.type === "text" && layer.subtitles
+        ? getActiveSubtitleText(layer.subtitles, input.timeline.currentTime)
+        : null
+    const timedOut =
+      !isTimeInClip(layer.clip, input.timeline.currentTime) ||
+      subtitleText === ""
+
+    if (
+      timedOut &&
+      !layer.unavailableLayer &&
+      (typeof evaluation?.properties.visible === "boolean"
+        ? evaluation.properties.visible
+        : layer.visible)
+    ) {
+      timedOutIds.add(layer.id)
+    }
+    const params =
+      subtitleText === null
+        ? evaluatedParams
+        : { ...evaluatedParams, text: subtitleText }
     const mask =
       evaluation && layer.mask
         ? applyMaskOverrides(layer.mask, evaluation.params)
@@ -148,15 +174,16 @@ export function buildRendererFrame(
             ? evaluation.properties.hue
             : layer.hue,
         opacity:
-          typeof evaluation?.properties.opacity === "number"
+          (typeof evaluation?.properties.opacity === "number"
             ? evaluation.properties.opacity
-            : layer.opacity,
+            : layer.opacity) *
+          getClipFadeFactor(layer.clip, input.timeline.currentTime),
         saturation:
           typeof evaluation?.properties.saturation === "number"
             ? evaluation.properties.saturation
             : layer.saturation,
         visible:
-          !layer.unavailableLayer &&
+          !(layer.unavailableLayer || timedOut) &&
           (typeof evaluation?.properties.visible === "boolean"
             ? evaluation.properties.visible
             : layer.visible),
@@ -171,7 +198,8 @@ export function buildRendererFrame(
     cropAspectRatio: input.cropAspectRatio ?? null,
     layers: buildCompositionTree(
       layers.map((entry) => entry.layer),
-      (layer) => entryById.get(layer.id)!
+      (layer) => entryById.get(layer.id)!,
+      (layer) => timedOutIds.has(layer.id)
     ),
     logicalSize: input.logicalSize ?? input.viewportSize,
     outputSize: input.outputSize,

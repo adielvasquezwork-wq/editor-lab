@@ -3,6 +3,9 @@ import {
   flattenComposition,
   isCompositionGroup,
 } from "./composition-tree"
+import { PlanePass } from "@/renderer/plane-pass"
+import { ColorLutPass } from "@/renderer/color-lut-pass"
+import { isTimeInClip } from "@/lib/editor/clip"
 import { GroupPass } from "./group-pass"
 import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
@@ -254,6 +257,7 @@ export class PipelineManager {
     )
 
     this.postProcess = new ScenePostProcess()
+    this.postProcess.setOutputAspect(this.width / this.height)
 
     this.blitScene = new THREE.Scene()
     this.blitCamera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
@@ -331,6 +335,10 @@ export class PipelineManager {
         this.passMap.set(layerId, pass)
         this.markDirty()
       }
+
+      // Synced every frame (not part of the signature): clip edits change
+      // which source frame is prepared without touching material state.
+      pass.clip = group ? null : (node.layer.clip ?? null)
 
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
@@ -501,6 +509,7 @@ export class PipelineManager {
     this.rtA.setSize(this.width, this.height)
     this.rtB.setSize(this.width, this.height)
     this.staticPrefixTarget.setSize(this.width, this.height)
+    this.postProcess.setOutputAspect(this.width / this.height)
 
     for (const pass of this.passMap.values()) {
       pass.resize(this.width, this.height)
@@ -612,8 +621,13 @@ export class PipelineManager {
   }
 
   async prepareForExportFrame(time: number, loop: boolean): Promise<void> {
+    // `enabled` reflects the previous frame. A clip entering its range at
+    // `time` is still disabled, so include it to prepare its first frame.
     const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+      (pass) =>
+        (pass.enabled ||
+          (pass.clip !== null && isTimeInClip(pass.clip, time))) &&
+        !this.compilingPasses.has(pass.layerId)
     )
 
     await Promise.all(
@@ -689,6 +703,25 @@ export class PipelineManager {
       )
     }
     pass.flushColorNode()
+
+    if (pass instanceof ColorLutPass) {
+      const asset = renderableLayer.asset
+      void pass
+        .setLut(asset?.kind === "image" ? asset.url : null)
+        .then(() => {
+          if (this.passMap.get(pass.layerId) !== pass) return
+          setLayerMediaError(pass.layerId, null)
+          this.markDirty()
+        })
+        .catch(() => {
+          if (this.passMap.get(pass.layerId) !== pass) return
+          setLayerMediaError(
+            pass.layerId,
+            describeMediaLoadFailure(asset?.fileName ?? "LUT")
+          )
+          this.markDirty()
+        })
+    }
 
     if (pass instanceof MediaPass) {
       const asset = renderableLayer.asset
@@ -1074,6 +1107,10 @@ export class PipelineManager {
       (layer.type === "image" || layer.type === "video")
     ) {
       return new MediaPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "plane") {
+      return new PlanePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "gradient") {

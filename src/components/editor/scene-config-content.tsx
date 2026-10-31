@@ -6,6 +6,7 @@ import {
   neutralSceneAdjustments,
 } from "@/lib/editor/scene-adjustments"
 import { Button } from "@/components/ui/button"
+import { SceneFilmSection } from "@/components/editor/scene-film-section"
 import { ChannelMixerMatrix } from "@/components/ui/channel-mixer-matrix"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { ColorCurvesEditor } from "@/components/ui/color-curves"
@@ -434,6 +435,8 @@ export function SceneConfigContent() {
           value={sceneConfig.clampGamma * 100}
         />
       </Section>
+
+      <SceneFilmSection />
 
       {/* Quantize */}
       <Section title="Quantize">

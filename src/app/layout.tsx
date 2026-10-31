@@ -25,7 +25,6 @@ export const metadata: Metadata = {
     title: APP_DEFAULT_TITLE,
   },
   applicationName: APP_NAME,
-  authors: [{ name: "basement.studio", url: "https://basement.studio" }],
   description: APP_DESCRIPTION,
   formatDetection: { telephone: false },
   metadataBase: new URL(APP_BASE_URL),

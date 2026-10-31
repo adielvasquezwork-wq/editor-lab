@@ -1,4 +1,8 @@
 import * as THREE from "three/webgpu"
+import {
+  type ExportVideoFrameSource,
+  openExportVideoFrameSource,
+} from "@/renderer/export-video-decoder"
 
 type VideoPlaybackMode = "export" | "live"
 const DEFAULT_SVG_RASTER_RESOLUTION = 2048
@@ -270,8 +274,86 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
         const texture = new THREE.VideoTexture(video)
         texture.colorSpace = THREE.SRGBColorSpace
 
+        // Export fast path: decode frames sequentially with WebCodecs and
+        // feed them to the same texture, instead of seeking the element.
+        let exportSource: ExportVideoFrameSource | null = null
+        let exportSourceState: "failed" | "ready" | "untried" = "untried"
+        let exportFrame: VideoFrame | null = null
+
+        const releaseExportFrame = () => {
+          if (texture.image !== video) {
+            texture.image = video
+            texture.needsUpdate = true
+          }
+
+          exportFrame?.close()
+          exportFrame = null
+        }
+
+        const disposeExportSource = () => {
+          releaseExportFrame()
+          exportSource?.dispose()
+          exportSource = null
+        }
+
+        const tryPrepareDecodedFrame = async (
+          targetTime: number
+        ): Promise<boolean> => {
+          if (exportSourceState === "failed") {
+            return false
+          }
+
+          if (exportSourceState === "untried") {
+            exportSource = await openExportVideoFrameSource(url, {
+              height: video.videoHeight,
+              width: video.videoWidth,
+            })
+            exportSourceState = exportSource ? "ready" : "failed"
+          }
+
+          if (!exportSource) {
+            return false
+          }
+
+          try {
+            const frame = await exportSource.frameAt(targetTime)
+
+            if (!frame) {
+              // Same frame as last time; it is still bound to the texture.
+              return exportFrame !== null
+            }
+
+            exportFrame?.close()
+            exportFrame = frame
+            // VideoTexture is typed for <video>, but three uploads VideoFrame
+            // sources natively (this is what VideoFrameTexture.setFrame does).
+            ;(texture as THREE.Texture).image = frame
+            texture.needsUpdate = true
+            return true
+          } catch {
+            exportSourceState = "failed"
+            disposeExportSource()
+            return false
+          }
+        }
+
+        // three's VideoTexture.dispose() calls cancelVideoFrameCallback on
+        // its image, which must be the <video>, not a decoded VideoFrame.
+        // MediaPass disposes the texture before the handle, so restore the
+        // element whoever disposes first.
+        const disposeTexture = texture.dispose.bind(texture)
+        texture.dispose = () => {
+          releaseExportFrame()
+          disposeTexture()
+        }
+
         const setPlaybackMode = async (nextMode: VideoPlaybackMode) => {
           mode = nextMode
+
+          if (nextMode !== "export") {
+            disposeExportSource()
+            exportSourceState = "untried"
+          }
 
           if (nextMode === "export") {
             video.pause()
@@ -292,6 +374,7 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
 
         settleResolve({
           dispose: () => {
+            disposeExportSource()
             texture.dispose()
             video.pause()
             video.src = ""
@@ -308,6 +391,10 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
 
             if (mode !== "export") {
               await setPlaybackMode("export")
+            }
+
+            if (await tryPrepareDecodedFrame(targetTime)) {
+              return
             }
 
             if (Math.abs(video.currentTime - targetTime) <= 1 / 240) {
