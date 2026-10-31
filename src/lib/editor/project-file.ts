@@ -6,6 +6,7 @@ import {
   normalizeAudioClips,
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
+import { normalizeTimeStep } from "@/editorlab/timing/time-step"
 import { normalizeLayerClip } from "@/lib/editor/clip"
 import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
 import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
@@ -872,12 +873,12 @@ export function migrateLayerParams(
 }
 
 /**
- * Validates the optional editing fields (`clip`, `subtitles`) from untrusted
+ * Validates the optional editing fields (`clip`, `subtitles`, `timeStep`) from untrusted
  * project files. Absent fields stay absent so legacy projects round-trip
  * byte-for-byte; malformed ones are dropped rather than rejecting the file.
  */
 export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
-  if (!("clip" in layer || "subtitles" in layer)) {
+  if (!("clip" in layer || "subtitles" in layer || "timeStep" in layer)) {
     return layer
   }
 
@@ -894,6 +895,12 @@ export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
       layer.type === "text" ? normalizeSubtitleCues(layer.subtitles) : null
     if (cues) next.subtitles = cues
     else delete next.subtitles
+  }
+
+  if ("timeStep" in layer) {
+    const step = normalizeTimeStep(layer.timeStep)
+    if (step) next.timeStep = step
+    else delete next.timeStep
   }
 
   return next

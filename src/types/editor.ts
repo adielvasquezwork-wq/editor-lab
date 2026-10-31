@@ -344,6 +344,13 @@ export interface BaseLayer {
   clip?: LayerClip | null
 
   /**
+   * Stepped timing ("on twos/threes"): the layer, and every layer inside it
+   * when it is a group, is evaluated at time held for `n` frames. Keyframes,
+   * shader time and video frames all step; layers outside keep full rate.
+   */
+  timeStep?: LayerTimeStep | null
+
+  /**
    * Text layers only: timed captions (SRT/VTT). When present the layer shows
    * the cue at the playhead instead of its static text, and hides between
    * cues.
@@ -570,6 +577,15 @@ export interface SceneConfig {
   letterbox?: SceneLetterbox | undefined
   /** Tints shadows and highlights separately. Absent = off. */
   splitTone?: SceneSplitTone | undefined
+}
+
+export interface LayerTimeStep {
+  /** Frames each pose is held for (2 = on twos). */
+  n: number
+  /** Frame rate the steps are counted in; match the export fps for exact repeats. */
+  fps: number
+  /** Shifts the cadence by this many frames. */
+  offset: number
 }
 
 export interface SceneVignette {

@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import { applyTimeSteps } from "@/editorlab/timing/time-step"
 import type { LayerClip } from "@/lib/editor/clip"
 import {
   clamp,
@@ -20,6 +21,7 @@ import type { BloomCompositor } from "@/renderer/dual-filter-bloom"
 import type {
   LayerCompositeMode,
   LayerParameterValues,
+  LayerTimeStep,
   MaskConfig,
   SceneConfig,
 } from "@/types/editor"
@@ -33,6 +35,13 @@ export class PassNode {
 
   /** Timeline range of the layer, synced by the pipeline every frame. */
   clip: LayerClip | null = null
+  /** Stepped-timing chain (outermost group first); empty = full rate. */
+  timeSteps: readonly LayerTimeStep[] = []
+
+  /** Maps project time to this layer's (possibly stepped) time. */
+  mapTime(time: number): number {
+    return applyTimeSteps(time, this.timeSteps)
+  }
 
   protected inputChanged = true
 

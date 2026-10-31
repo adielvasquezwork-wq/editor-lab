@@ -72,7 +72,7 @@ export class GroupPass extends PassNode {
     await Promise.all(
       this.children
         .filter(this.isActive)
-        .map((pass) => pass.prepareForExportFrame(time, loop))
+        .map((pass) => pass.prepareForExportFrame(pass.mapTime(time), loop))
     )
   }
 
