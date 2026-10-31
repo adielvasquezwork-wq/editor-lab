@@ -1,0 +1,32 @@
+Editor Lab
+Copyright 2026 the Editor Lab contributors
+
+This product is a modified fork of Shader Lab by basement.studio
+(https://github.com/basementstudio/shader-lab), licensed under the Apache
+License, Version 2.0 (see LICENSE.md). Original work Copyright (c) 2026
+basement.studio LLC. "basement" and "Shader Lab" are names of their owners;
+this fork is not affiliated with or endorsed by basement.studio.
+
+packages/shader-lab-mcp is licensed under the MIT License by its authors.
+
+Modifications (Apache-2.0 section 4(b))
+---------------------------------------
+Starting from upstream commit 92e640d, this fork changes, among others:
+
+- Video export and preview decoding: sequential WebCodecs frame source
+  (src/renderer/export-video-decoder.ts, src/renderer/media-texture.ts),
+  encoder backpressure (src/lib/editor/video-export-encoder.ts) and the
+  export loop (src/lib/editor/export.ts).
+- Video-editing workflow: layer clips, cuts, ripple delete, audio clips and
+  mixing, subtitles, lower thirds, preview proxies (src/lib/editor/clip*.ts,
+  src/lib/editor/audio*, src/lib/editor/subtitles.ts, src/store/*,
+  src/components/editor/timeline/*, src/components/editor/layer-clip-section.tsx
+  and renderer/pipeline changes).
+- Documentary finishing: vignette, letterbox, split tone
+  (src/renderer/scene-post-process.ts), Color LUT layer
+  (src/renderer/color-lut-pass.ts, src/lib/editor/cube-lut.ts), Ken Burns,
+  house easing default, grain frame rate/hold.
+- Branding, metadata, Sentry configuration and default copy.
+
+The full list of changed files is the git history of this repository after
+commit 92e640d (`git diff --stat 92e640d`).

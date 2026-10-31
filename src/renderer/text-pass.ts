@@ -254,7 +254,7 @@ export class TextPass extends PassNode {
     const text =
       typeof this.params.text === "string" && this.params.text.length > 0
         ? this.params.text
-        : "basement.studio"
+        : "Title"
     const baseFontSize =
       typeof this.params.fontSize === "number"
         ? Math.max(4, this.params.fontSize)

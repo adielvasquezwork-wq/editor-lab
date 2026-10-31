@@ -1,3 +1,40 @@
+# Editor Lab
+
+A browser-based WebGPU editor for documentary-style video, forked from
+[Shader Lab](https://github.com/basementstudio/shader-lab) by basement.studio
+(Apache-2.0; see `LICENSE.md` and `NOTICE`). Not affiliated with basement.studio.
+
+## What this fork adds
+
+- **Fast video export and preview**: source video is decoded once, in order,
+  with WebCodecs instead of seeking a `<video>` element per frame (~55× faster
+  frame access on long-GOP footage). Untagged-color, HDR and rotated sources
+  fall back to the original path.
+- **Editing**: per-layer clips (start/end/source in, fades), Split (`B`),
+  ripple delete (`Shift+Delete`), a Clips track in the timeline, preview proxies.
+- **Audio**: music/dialogue/ambience clips plus each video clip's own audio,
+  mixed with fades and ducking, identically in preview and export.
+- **Titles**: lower thirds and SRT/VTT captions (import/export).
+- **Finishing**: vignette (in stops), letterbox, split tone, `.cube` LUTs with
+  S-Log3 / LogC3 / V-Log input, Ken Burns, house easing default, grain frame
+  rate/hold.
+
+## Development
+
+```bash
+bun install --frozen-lockfile
+bun run dev                 # http://localhost:3000/tools/shader-lab
+bun run check               # lint + both typecheckers
+bun test                    # unit tests
+bun run test:export-decode  # WebCodecs decoder vs ffmpeg ground truth (needs ffmpeg)
+bun run test:export-audio   # export audio mix in Chromium
+bun run test:film           # post-process + LUT pass on headless WebGPU
+```
+
+The section below is the upstream runtime package documentation.
+
+---
+
 # @basementstudio/shader-lab
 
 <a href="https://basement.studio"><img alt="basement.studio logo" src="https://img.shields.io/badge/MADE%20BY%20basement.studio-000000.svg?style=for-the-badge&labelColor=000"></a>

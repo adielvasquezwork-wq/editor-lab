@@ -558,7 +558,7 @@ const customShaderParams = [
 
 const textParams = [
   {
-    defaultValue: "basement.studio",
+    defaultValue: "Title",
     key: "text",
     label: "Text",
     maxLength: 600,

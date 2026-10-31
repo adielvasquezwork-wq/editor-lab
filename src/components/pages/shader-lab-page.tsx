@@ -65,7 +65,7 @@ export function ShaderLabPage({
     >
       {/* The editor chrome has no heading element; prose lives on /about. */}
       <h1 className="sr-only">
-        Shader Lab — browser-based WebGPU shader editor
+        Editor Lab — browser-based WebGPU video editor
       </h1>
       <ThemeMount />
       <AgentBridgeMount />

@@ -1,8 +1,8 @@
-export const APP_NAME = "Shader Lab"
-export const APP_DEFAULT_TITLE = "Shader Lab"
-export const APP_TITLE_TEMPLATE = "%s | basement.studio"
+export const APP_NAME = "Editor Lab"
+export const APP_DEFAULT_TITLE = "Editor Lab"
+export const APP_TITLE_TEMPLATE = "%s | Editor Lab"
 export const APP_DESCRIPTION =
-  "A free browser-based WebGPU editor by basement.studio to create, stack, and animate shader effects on images, video, text, and 3D — with a remixable community gallery."
+  "A browser-based WebGPU editor for documentary-style video: cut clips, mix audio, add titles and captions, and finish footage with shader effects and LUTs."
 
 function resolveAppBaseUrl() {
   const explicitBaseUrl = process.env.NEXT_PUBLIC_BASE_URL
@@ -38,7 +38,7 @@ export const APP_OG_IMAGES = [
   },
 ]
 
-export const APP_TWITTER_HANDLE = "@basementstudio"
+export const APP_TWITTER_HANDLE = ""
 
 export const APP_TWITTER_IMAGES = [
   {

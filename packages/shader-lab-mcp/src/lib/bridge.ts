@@ -5,10 +5,7 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 5000
 
 const LOCALHOST_ORIGIN_PATTERN = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/
 
-const DEFAULT_ALLOWED_ORIGINS = [
-  "https://eng.basement.studio",
-  "https://*.vercel.app",
-]
+const DEFAULT_ALLOWED_ORIGINS = ["https://*.vercel.app"]
 
 function parseExtraAllowedOrigins(): string[] {
   const fromEnv = (process.env.SHADER_LAB_ALLOWED_ORIGINS ?? "")

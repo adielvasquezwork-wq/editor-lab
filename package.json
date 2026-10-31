@@ -1,6 +1,6 @@
 {
-  "name": "shader-lab",
-  "description": "Shader Lab starter template",
+  "name": "editor-lab",
+  "description": "Editor Lab: browser-based WebGPU editor for documentary-style video",
   "version": "0.1.0",
   "private": true,
   "packageManager": "bun@1.3.5",

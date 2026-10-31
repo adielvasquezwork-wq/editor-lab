@@ -92,7 +92,7 @@ const EditorExportDialog = dynamic(
 )
 
 const HISTORY_COMMIT_DEBOUNCE_MS = 220
-const GITHUB_REPO_URL = "https://github.com/basementstudio/shader-lab"
+const GITHUB_REPO_URL = "https://github.com/adielvasquezwork-wq/editor-lab"
 
 function TopbarDivider({ className }: { className?: string }) {
   return (
@@ -110,7 +110,7 @@ function GitHubStarLink({ mobile = false }: { mobile?: boolean }) {
   return (
     <HoverTooltip content="GitHub" side={mobile ? "top" : "bottom"}>
       <IconButtonLink
-        aria-label="Open Shader Lab on GitHub"
+        aria-label="Open Editor Lab on GitHub"
         className={mobile ? "size-8" : "h-7 w-7"}
         href={GITHUB_REPO_URL}
         rel="noreferrer"
@@ -805,7 +805,7 @@ export function EditorTopBar({
                 )}
               </IconButton>
               <IconButtonLink
-                aria-label="Open Shader Lab on GitHub"
+                aria-label="Open Editor Lab on GitHub"
                 className="size-full min-h-11"
                 href={GITHUB_REPO_URL}
                 rel="noreferrer"

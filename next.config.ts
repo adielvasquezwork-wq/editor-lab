@@ -192,18 +192,23 @@ const NextApp = () => {
 }
 
 // Not the token alone: a dev machine can have one in .env.sentry-build-plugin.
+// Org/project come from the environment so a fork never uploads to someone
+// else's Sentry account.
 const canPublishSentryArtifacts =
-  process.env.VERCEL === "1" && Boolean(process.env.SENTRY_AUTH_TOKEN)
+  process.env.VERCEL === "1" &&
+  Boolean(process.env.SENTRY_AUTH_TOKEN) &&
+  Boolean(process.env.SENTRY_ORG) &&
+  Boolean(process.env.SENTRY_PROJECT)
 
 if (process.env.VERCEL_ENV === "production" && !canPublishSentryArtifacts) {
   console.warn(
-    "[sentry] SENTRY_AUTH_TOKEN is not set — skipping sourcemap upload and release creation. Production stack traces will be minified."
+    "[sentry] SENTRY_AUTH_TOKEN / SENTRY_ORG / SENTRY_PROJECT not set — skipping sourcemap upload and release creation. Production stack traces will be minified."
   )
 }
 
 export default withSentryConfig(NextApp, {
-  org: "basement-studio",
-  project: "shader-lab",
+  ...(process.env.SENTRY_ORG ? { org: process.env.SENTRY_ORG } : {}),
+  ...(process.env.SENTRY_PROJECT ? { project: process.env.SENTRY_PROJECT } : {}),
   silent: !process.env.VERCEL,
   widenClientFileUpload: true,
   tunnelRoute: "/monitoring",

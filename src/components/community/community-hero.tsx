@@ -4,7 +4,6 @@ import { AuthorAvatar } from "@/components/community/author-avatar";
 import { LucideHeartIcon } from "@/components/community/lucide-heart-icon";
 import { StatNumber } from "@/components/community/stat-number";
 import { HeroBackdrop } from "@/components/community/hero-backdrop";
-import { BasementWordmark } from "@/components/editor/made-by-basement";
 import { Typography } from "@/components/ui/typography";
 import type { HeroScene } from "@/lib/community/public-scenes";
 import { scenePagePath } from "@/lib/community/scene-links";
@@ -32,7 +31,7 @@ export function CommunityHero({
         <div className="relative z-[1] flex w-full flex-col gap-[var(--ds-space-8)] lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col items-start gap-[var(--ds-space-4)]">
             <span className="ml-2 text-[var(--ds-color-text-secondary)]">
-              <BasementWordmark height={12} />
+              Editor Lab
             </span>
 
             <h1 className="type-display m-0 text-balance text-left text-[clamp(44px,8.5vw,80px)] leading-[0.85] tracking-[-0.04em]">

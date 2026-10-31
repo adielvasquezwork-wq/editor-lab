@@ -42,7 +42,7 @@ function measure(params: LayerParameterValues, logical: Size): [number, number] 
   measureContext.font = `${weight} ${fontSize}px ${resolveTextFontFamily(family)}`
   const block = measureTextBlock(
     measureContext,
-    typeof params.text === "string" && params.text ? params.text : "basement.studio",
+    typeof params.text === "string" && params.text ? params.text : "Title",
     fontSize,
     typeof params.letterSpacing === "number" ? params.letterSpacing : -0.05,
     resolveLineHeight(params.lineHeight)
