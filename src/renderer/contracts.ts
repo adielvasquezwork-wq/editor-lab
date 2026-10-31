@@ -10,6 +10,10 @@ import {
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { getClipFadeFactor, isTimeInClip } from "@/lib/editor/clip"
 import { getActiveSubtitleText } from "@/lib/editor/subtitles"
+import {
+  applyTimeSteps,
+  collectLayerTimeSteps,
+} from "@/editorlab/timing/time-step"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
 import type { CompositionNode } from "@/renderer/composition-tree"
@@ -17,6 +21,7 @@ import type {
   EditorAsset,
   EditorLayer,
   LayerParameterValues,
+  LayerTimeStep,
   SceneConfig,
   Size,
   TimelineStateSnapshot,
@@ -38,6 +43,8 @@ export interface RenderableLayerPass {
   layer: EditorLayer
   params: LayerParameterValues
   patternAssets?: EditorAsset[]
+  /** Stepped-timing chain for this layer (outermost group first). */
+  timeSteps?: LayerTimeStep[]
 }
 
 export interface RendererFrame {
@@ -95,14 +102,42 @@ function getCachedClone(params: LayerParameterValues): LayerParameterValues {
   return cached
 }
 
+/** Keyframes evaluated per layer time (stepped layers hold their poses). */
+function evaluateSteppedTimeline(
+  layers: EditorLayer[],
+  tracks: TimelineStateSnapshot["tracks"],
+  timeOf: (layer: EditorLayer) => number
+) {
+  const buckets = new Map<number, EditorLayer[]>()
+
+  for (const layer of layers) {
+    const time = timeOf(layer)
+    const bucket = buckets.get(time)
+    if (bucket) bucket.push(layer)
+    else buckets.set(time, [layer])
+  }
+
+  if (buckets.size <= 1) {
+    const [time = 0] = buckets.keys()
+    return evaluateTimelineForLayers(layers, tracks, time)
+  }
+
+  return [...buckets].flatMap(([time, bucket]) =>
+    evaluateTimelineForLayers(bucket, tracks, time)
+  )
+}
+
 export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
-  const keyframeStates = evaluateTimelineForLayers(
+  const timeSteps = collectLayerTimeSteps(input.layers)
+  const layerTime = (layer: EditorLayer) =>
+    applyTimeSteps(input.timeline.currentTime, timeSteps.get(layer.id))
+  const keyframeStates = evaluateSteppedTimeline(
     input.layers,
     input.timeline.tracks,
-    input.timeline.currentTime
+    layerTime
   )
   const evaluatedLayers = input.audio
     ? applyAudioModulation(
@@ -121,15 +156,17 @@ export function buildRendererFrame(
   const timedOutIds = new Set<string>()
   const layers = input.layers.map((layer) => {
     const evaluation = evaluatedById.get(layer.id)
+    const time = layerTime(layer)
+    const steps = timeSteps.get(layer.id)
     const evaluatedParams = evaluation
       ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
       : getCachedClone(layer.params)
     const subtitleText =
       layer.type === "text" && layer.subtitles
-        ? getActiveSubtitleText(layer.subtitles, input.timeline.currentTime)
+        ? getActiveSubtitleText(layer.subtitles, time)
         : null
     const timedOut =
-      !isTimeInClip(layer.clip, input.timeline.currentTime) ||
+      !isTimeInClip(layer.clip, time) ||
       subtitleText === ""
 
     if (
@@ -177,7 +214,7 @@ export function buildRendererFrame(
           (typeof evaluation?.properties.opacity === "number"
             ? evaluation.properties.opacity
             : layer.opacity) *
-          getClipFadeFactor(layer.clip, input.timeline.currentTime),
+          getClipFadeFactor(layer.clip, time),
         saturation:
           typeof evaluation?.properties.saturation === "number"
             ? evaluation.properties.saturation
@@ -189,6 +226,7 @@ export function buildRendererFrame(
             : layer.visible),
       },
       params,
+      ...(steps ? { timeSteps: steps } : {}),
     }
   })
 

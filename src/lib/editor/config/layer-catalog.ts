@@ -1,3 +1,7 @@
+import {
+  EDITORLAB_LAYER_CATALOG,
+  EDITORLAB_PICKER_ORDER,
+} from "@/editorlab/effects/registry"
 import type { LayerType } from "@/types/editor"
 
 export const LAYER_CATALOG_CATEGORIES = ["core", "distort"] as const
@@ -11,6 +15,7 @@ export interface LayerCatalogEntry {
 }
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
+  ...EDITORLAB_LAYER_CATALOG,
   group: { label: "Group" },
   "photographic-cells": {
     description:
@@ -375,6 +380,7 @@ export const EFFECT_PICKER_ORDER = [
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",
+  ...EDITORLAB_PICKER_ORDER,
 ] as const satisfies readonly LayerType[]
 
 export const NEW_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([

@@ -339,6 +339,8 @@ export class PipelineManager {
       // Synced every frame (not part of the signature): clip edits change
       // which source frame is prepared without touching material state.
       pass.clip = group ? null : (node.layer.clip ?? null)
+      // Groups pass raw time down; each child applies its full chain.
+      pass.timeSteps = group ? [] : (node.timeSteps ?? [])
 
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
@@ -626,12 +628,15 @@ export class PipelineManager {
     const activePasses = this.passes.filter(
       (pass) =>
         (pass.enabled ||
-          (pass.clip !== null && isTimeInClip(pass.clip, time))) &&
+          (pass.clip !== null &&
+            isTimeInClip(pass.clip, pass.mapTime(time)))) &&
         !this.compilingPasses.has(pass.layerId)
     )
 
     await Promise.all(
-      activePasses.map((pass) => pass.prepareForExportFrame(time, loop))
+      activePasses.map((pass) =>
+        pass.prepareForExportFrame(pass.mapTime(time), loop)
+      )
     )
   }
 
@@ -1000,7 +1005,14 @@ export class PipelineManager {
           delta: number,
           timelineTime: number
         ) => void
-      )(this.renderer, input, output, time, delta, timelineTime)
+      )(
+        this.renderer,
+        input,
+        output,
+        pass.mapTime(time),
+        delta,
+        pass.mapTime(timelineTime)
+      )
     } catch (error) {
       if (this.strictPassFailures) {
         const alreadyReported =
