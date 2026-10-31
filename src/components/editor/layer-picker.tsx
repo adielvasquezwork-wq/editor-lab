@@ -81,6 +81,7 @@ export type AddLayerAction =
   | "plotter"
   | "posterize"
   | "color-lut"
+  | "leave-color"
   | "photographic-cells"
   | "displaced-rings"
   | "slice"

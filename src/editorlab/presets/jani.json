@@ -1,0 +1,60 @@
+{
+  "id": "jani",
+  "label": "Jani",
+  "description": "Crushed blacks, desaturated, heavy vignette, tilt-shift band and a tight bloom (style breakdown D6 + D1).",
+  "scene": {
+    "saturation": 0.7,
+    "contrast": 0.08,
+    "clampMin": 0.025,
+    "vignette": {
+      "amount": 2.0,
+      "inner": 0.2,
+      "outer": 0.95,
+      "roundness": 0.35
+    },
+    "splitTone": {
+      "shadowColor": "#2f6b63",
+      "shadowAmount": 0.08,
+      "highlightColor": "#f2e6c8",
+      "highlightAmount": 0.06,
+      "balance": 0
+    }
+  },
+  "layers": [
+    {
+      "type": "bloom",
+      "name": "Tight bloom",
+      "params": {
+        "bloomIntensity": 0.18,
+        "bloomThreshold": 0.96,
+        "bloomRadius": 3,
+        "bloomSoftness": 0.25,
+        "highlightDrive": 1
+      }
+    },
+    {
+      "type": "focus-blur",
+      "name": "Tilt-shift band",
+      "params": {
+        "blurFrom": "linear",
+        "kind": "gaussian",
+        "radius": 22,
+        "angle": 0,
+        "center": [0, 0],
+        "range": 0.4,
+        "transition": 0.28,
+        "grain": 0.08
+      }
+    },
+    {
+      "type": "grain",
+      "name": "Grain",
+      "params": {
+        "amount": 0.08,
+        "blend": "soft-light",
+        "chroma": 0,
+        "filmRate": "23.976"
+      }
+    }
+  ]
+}

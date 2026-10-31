@@ -1,0 +1,40 @@
+{
+  "id": "chuppl",
+  "label": "CHUPPL",
+  "description": "Scanned paper: black and white with red kept, flat contrast, whites at ~94%, off-white paper and subtle grain (style breakdown D2 + D6).",
+  "scene": {
+    "contrast": -0.1,
+    "clampMax": 1.06,
+    "splitTone": {
+      "shadowColor": "#2b2b2b",
+      "shadowAmount": 0,
+      "highlightColor": "#ece6da",
+      "highlightAmount": 0.35,
+      "balance": -0.4
+    }
+  },
+  "layers": [
+    {
+      "type": "leave-color",
+      "name": "Keep red",
+      "params": {
+        "color": "#E0262B",
+        "tolerance": 25,
+        "softness": 15,
+        "minChroma": 0.14,
+        "amount": 1
+      }
+    },
+    {
+      "type": "grain",
+      "name": "Paper grain",
+      "params": {
+        "amount": 0.07,
+        "blend": "overlay",
+        "chroma": 0,
+        "roughness": 0.7,
+        "filmRate": "23.976"
+      }
+    }
+  ]
+}

@@ -30,7 +30,7 @@
     "test:composition": "bun tests/composition/run.mjs",
     "test:export-decode": "bun tests/export/decode.mjs",
     "test:export-audio": "bun tests/export/audio-mix.mjs",
-    "test:film": "bun tests/film/post-process.mjs && bun tests/film/color-lut.mjs && bun tests/film/plane.mjs",
+    "test:film": "bun tests/film/post-process.mjs && bun tests/film/color-lut.mjs && bun tests/film/plane.mjs && bun tests/film/leave-color.mjs",
     "typecheck": "tsgo --noEmit",
     "typecheck:runtime": "bun run --cwd packages/shader-lab-react typecheck",
     "typecheck:compare": "bun run typecheck:tsc && bun run typecheck",

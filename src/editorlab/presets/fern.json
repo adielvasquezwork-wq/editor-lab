@@ -1,0 +1,50 @@
+{
+  "id": "fern",
+  "label": "fern",
+  "description": "Low-key, teal shadows and magenta highlights, contrast +25, 2:1 letterbox and a tight glow (style breakdown D6 + D3/D4).",
+  "scene": {
+    "exposure": -0.15,
+    "contrast": 0.1,
+    "saturation": 0.85,
+    "vignette": {
+      "amount": 0.8,
+      "inner": 0.4,
+      "outer": 1.2,
+      "roundness": 0.5
+    },
+    "splitTone": {
+      "shadowColor": "#1b6f80",
+      "shadowAmount": 0.45,
+      "highlightColor": "#ff4f9a",
+      "highlightAmount": 0.14,
+      "balance": -0.25
+    },
+    "letterbox": {
+      "aspect": 2,
+      "color": "#000000"
+    }
+  },
+  "layers": [
+    {
+      "type": "bloom",
+      "name": "Tight glow",
+      "params": {
+        "bloomIntensity": 0.6,
+        "bloomThreshold": 0.72,
+        "bloomRadius": 4,
+        "bloomSoftness": 0.35,
+        "highlightDrive": 1.2
+      }
+    },
+    {
+      "type": "grain",
+      "name": "Grain",
+      "params": {
+        "amount": 0.05,
+        "blend": "soft-light",
+        "chroma": 0,
+        "filmRate": "25"
+      }
+    }
+  ]
+}

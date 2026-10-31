@@ -53,6 +53,7 @@ export const EFFECT_LAYER_TYPES = [
   "plotter",
   "posterize",
   "color-lut",
+  "leave-color",
   "threshold",
   "gradient-map",
   "lumen-print",

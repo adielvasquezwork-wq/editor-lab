@@ -228,6 +228,12 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Plotter",
     previewSrc: "/examples/effects/plotter.webp",
   },
+  "leave-color": {
+    description:
+      "Turns everything black and white except one colour (e.g. red accents on scanned paper).",
+    category: "core",
+    label: "Leave Color",
+  },
   "color-lut": {
     description:
       "Applies a .cube LUT, with optional S-Log3 / LogC3 / V-Log to Rec.709 conversion for camera footage.",
@@ -356,6 +362,7 @@ export const EFFECT_PICKER_ORDER = [
   "voxel",
   "posterize",
   "color-lut",
+  "leave-color",
   "threshold",
   "gradient-map",
   "lumen-print",
