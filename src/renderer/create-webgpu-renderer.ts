@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs"
+import * as Sentry from "@/lib/telemetry"
 import * as THREE from "three/webgpu"
 import { recordDeviceDiagnostics } from "@/lib/webgpu-diagnostics"
 import type { EditorRenderer, RendererFrame } from "@/renderer/contracts"

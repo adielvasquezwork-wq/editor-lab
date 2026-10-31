@@ -2,7 +2,7 @@ import { getLayerLabel } from "@/lib/editor/config/layer-catalog"
 import { EFFECT_LAYER_TYPES } from "@/types/editor"
 
 /**
- * Canonical machine-readable facts about Shader Lab — the single source of
+ * Canonical machine-readable facts about Editor Lab — the single source of
  * truth for entity copy consumed by JSON-LD structured data, the about page,
  * `/llms.txt`, `/agents.md`, and the markdown mirrors.
  *
@@ -12,55 +12,44 @@ import { EFFECT_LAYER_TYPES } from "@/types/editor"
  * derived from `LAYER_CATALOG` so they can't drift from the editor.
  */
 export const PRODUCT_FACTS = {
-  name: "Shader Lab",
+  name: "Editor Lab",
   description:
-    "Shader Lab is a free browser-based editor by basement.studio for creating, stacking, and animating shader effects on images, video, text, and 3D models. It runs on WebGPU, supports custom TSL shaders compiled in the browser, exports video, and has a community gallery where every published scene can be opened and remixed. Scenes can also be embedded in any React site with the open-source runtime, and AI agents can drive the editor through an MCP server.",
-  applicationCategory: "DesignApplication",
+    "Editor Lab is a free browser-based editor for documentary-style video: cut clips on a timeline, mix music, voice-over and natural sound with ducking, add lower thirds and captions, and finish footage with shader effects, LUTs, vignette and letterbox. It runs on WebGPU and exports video directly from the browser. It is a fork of Shader Lab by basement.studio.",
+  applicationCategory: "MultimediaApplication",
   operatingSystem: "Web browser",
   browserRequirements: "Requires WebGPU",
-  // Published on the privacy page as the contact for account/data requests.
-  contactEmail: "dev@basement.studio",
-  githubUrl: "https://github.com/basementstudio/shader-lab",
+  // Public contact for questions and data requests.
+  contactUrl: "https://github.com/adielvasquezwork-wq/editor-lab/issues",
+  githubUrl: "https://github.com/adielvasquezwork-wq/editor-lab",
   capabilities: [
-    "Layer-based shader composition",
+    "Clip-based video editing with split and ripple delete",
+    "Multi-track audio mix with fades and ducking",
+    "Lower thirds and SRT/VTT captions",
+    "Layer-based shader effects and .cube LUTs",
     "Timeline parameter animation",
-    "Custom TSL shaders compiled in the browser",
-    "Image, video, camera, text, and 3D model sources",
     "Video and image export",
-    "Community gallery with remixing and lineage credit",
-    "React runtime for embedding scenes",
     "MCP server so AI agents can drive the editor",
   ],
   packages: [
     {
       name: "@basementstudio/shader-lab",
       description:
-        "Portable React/WebGPU runtime — render exported Shader Lab scenes in any React app.",
+        "Upstream React/WebGPU runtime by basement.studio for rendering exported scenes in React apps.",
       npmUrl: "https://www.npmjs.com/package/@basementstudio/shader-lab",
     },
     {
       name: "@basementstudio/shader-lab-mcp",
       description:
-        "MCP server that lets an AI agent drive a running Shader Lab editor tab — create and tweak layers, write custom TSL shaders, and screenshot the canvas.",
+        "Upstream MCP server by basement.studio that lets an AI agent drive a running editor tab.",
       npmUrl: "https://www.npmjs.com/package/@basementstudio/shader-lab-mcp",
     },
   ],
   publisher: {
-    name: "basement.studio",
-    alternateNames: [
-      "Basement Studio",
-      "basement studio",
-      "basement",
-      "BSMNT",
-      "basementstudio",
-    ],
-    foundingDate: "2020",
-    url: "https://basement.studio",
-    sameAs: [
-      "https://x.com/basementstudio",
-      "https://www.instagram.com/basementdotstudio",
-      "https://github.com/basementstudio",
-    ],
+    name: "Editor Lab contributors",
+    alternateNames: [],
+    foundingDate: "2026",
+    url: "https://github.com/adielvasquezwork-wq/editor-lab",
+    sameAs: [],
   },
 } as const
 

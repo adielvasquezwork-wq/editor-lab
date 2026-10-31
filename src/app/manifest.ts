@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next"
 import { APP_DESCRIPTION, APP_NAME } from "@/lib/app"
-import { EDITOR_PATH } from "@/lib/community/scene-links"
+import { EDITOR_PATH } from "@/lib/editor/paths"
 
 export default function manifest(): MetadataRoute.Manifest {
   return {

@@ -19,6 +19,10 @@ A browser-based WebGPU editor for documentary-style video, forked from
   S-Log3 / LogC3 / V-Log input, Ken Burns, house easing default, grain frame
   rate/hold.
 
+Upstream's community gallery, accounts, database and Sentry integrations are
+removed: there is no server-side storage, projects autosave in the browser and
+Cmd/Ctrl+S saves a `.lab` file.
+
 ## Development
 
 ```bash

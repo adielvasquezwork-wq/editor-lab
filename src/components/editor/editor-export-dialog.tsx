@@ -64,7 +64,6 @@ import {
   buildShaderExportConfig,
   validateShaderExportSupport,
 } from "@/lib/editor/shader-export"
-import { disarmRemixDraft } from "@/lib/editor/remix-draft"
 import { generateShaderExportSnippet } from "@/lib/editor/shader-export-snippet"
 import {
   type AudioAnalysisStatus,
@@ -869,7 +868,6 @@ export function EditorExportDialog({
       }
 
       const result = withAutosaveSuppressed(() => {
-        disarmRemixDraft()
         useDraftStore.getState().clearActiveDraft()
         useRemixOriginStore.getState().clearRemixOrigin()
 

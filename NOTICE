@@ -26,7 +26,11 @@ Starting from upstream commit 92e640d, this fork changes, among others:
   (src/renderer/scene-post-process.ts), Color LUT layer
   (src/renderer/color-lut-pass.ts, src/lib/editor/cube-lut.ts), Ken Burns,
   house easing default, grain frame rate/hold.
-- Branding, metadata, Sentry configuration and default copy.
+- Branding, metadata and default copy.
+- Removed upstream's community gallery, accounts/auth, database and Sentry
+  integrations (src/app/api, src/app/auth, src/components/community,
+  src/lib/community, src/lib/auth, src/lib/db, middleware, instrumentation);
+  Cmd/Ctrl+S saves a .lab file instead of an account draft.
 
 The full list of changed files is the git history of this repository after
 commit 92e640d (`git diff --stat 92e640d`).

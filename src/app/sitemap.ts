@@ -1,26 +1,13 @@
 import type { MetadataRoute } from "next"
 import { APP_BASE_URL, isProductionDeployment } from "@/lib/app"
-import { isCommunityEnabled } from "@/lib/community/config"
-import { listAllProfilesForSitemap } from "@/lib/community/public-profiles"
-import { listAllPublishedScenesForSitemap } from "@/lib/community/public-scenes"
-import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
-import {
-  ABOUT_PATH,
-  COMMUNITY_PATH,
-  EDITOR_PATH,
-  EFFECTS_PATH,
-  effectPagePath,
-  PRIVACY_PATH,
-  profilePagePath,
-  scenePagePath,
-} from "@/lib/community/scene-links"
+import { ABOUT_PATH, EDITOR_PATH, PRIVACY_PATH } from "@/lib/editor/paths"
 
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+export default function sitemap(): MetadataRoute.Sitemap {
   if (!isProductionDeployment()) {
     return []
   }
 
-  const entries: MetadataRoute.Sitemap = [
+  return [
     {
       url: `${APP_BASE_URL}${EDITOR_PATH}`,
       lastModified: new Date(),
@@ -40,57 +27,4 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.1,
     },
   ]
-
-  if (!isCommunityEnabled()) {
-    return entries
-  }
-
-  const scenes = await listAllPublishedScenesForSitemap()
-
-  entries.push({
-    url: `${APP_BASE_URL}${COMMUNITY_PATH}`,
-    lastModified: new Date(),
-    changeFrequency: "daily",
-    priority: 0.8,
-  })
-
-  entries.push({
-    url: `${APP_BASE_URL}${EFFECTS_PATH}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly",
-    priority: 0.6,
-  })
-
-  for (const effect of COMMUNITY_EFFECT_TYPES) {
-    entries.push({
-      url: `${APP_BASE_URL}${effectPagePath(effect)}`,
-      lastModified: new Date(),
-      changeFrequency: "weekly",
-      priority: 0.5,
-    })
-  }
-
-  for (const scene of scenes) {
-    entries.push({
-      url: `${APP_BASE_URL}${scenePagePath(scene.slug)}`,
-      lastModified: scene.publishedAt
-        ? new Date(scene.publishedAt)
-        : new Date(),
-      changeFrequency: "weekly",
-      priority: 0.6,
-    })
-  }
-
-  for (const profile of await listAllProfilesForSitemap()) {
-    entries.push({
-      url: `${APP_BASE_URL}${profilePagePath(profile.handle)}`,
-      lastModified: profile.lastPublishedAt
-        ? new Date(profile.lastPublishedAt)
-        : new Date(),
-      changeFrequency: "weekly",
-      priority: 0.4,
-    })
-  }
-
-  return entries
 }

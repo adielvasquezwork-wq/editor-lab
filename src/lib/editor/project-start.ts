@@ -2,8 +2,6 @@ import { withAutosaveRestore } from "@/lib/editor/autosave/suppress"
 import { getBlankProjectFile } from "@/lib/editor/blank-project"
 import { getDefaultProjectFile } from "@/lib/editor/default-project"
 import { applyLabProjectFile } from "@/lib/editor/project-file"
-import { disarmRemixDraft } from "@/lib/editor/remix-draft"
-import { clearRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { useAssetStore } from "@/store/asset-store"
 import { useDraftStore } from "@/store/draft-store"
 import { useEditorStore } from "@/store/editor-store"
@@ -20,14 +18,12 @@ export function replaceWithNewProject(kind: ProjectStart): void {
       ? getBlankProjectFile(useThemeStore.getState().theme)
       : getDefaultProjectFile()
   withAutosaveRestore(() => {
-    disarmRemixDraft()
     useDraftStore.getState().clearActiveDraft()
     useRemixOriginStore.getState().clearRemixOrigin()
     useAssetStore.getState().replaceAssets([])
     applyLabProjectFile(project, [])
     useHistoryStore.getState().clearHistory()
     useEditorStore.getState().resetView()
-    clearRequestedSceneSlug()
   })
 }
 

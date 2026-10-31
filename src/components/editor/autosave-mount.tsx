@@ -54,7 +54,6 @@ import {
   applyLabProjectFile,
   buildLabProjectFile,
 } from "@/lib/editor/project-file"
-import { getRequestedSceneSlug } from "@/lib/editor/requested-scene-slug"
 import { useAssetStore } from "@/store/asset-store"
 import { useAudioStore } from "@/store/audio-store"
 import { useDraftStore } from "@/store/draft-store"
@@ -184,13 +183,6 @@ export function AutosaveMount() {
 
     async function boot() {
       const resuming = consumeAutosaveResume()
-
-      if (getRequestedSceneSlug()) {
-        readyRef.current = true
-        markAutosaveReady()
-
-        return
-      }
 
       const candidate = await findRestorableAutosave()
 

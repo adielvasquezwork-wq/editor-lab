@@ -1,7 +1,7 @@
 "use client"
 
 import { withPreviewProxies } from "@/store/proxy-store"
-import * as Sentry from "@sentry/nextjs"
+import * as Sentry from "@/lib/telemetry"
 import { useEffect, useRef, useState } from "react"
 import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
 import { isPreviewRenderLocked } from "@/lib/editor/preview-render-lock"

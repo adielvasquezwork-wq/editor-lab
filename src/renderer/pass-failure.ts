@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/nextjs"
+import * as Sentry from "@/lib/telemetry"
 import { useLayerStore } from "@/store/layer-store"
 import type { EditorLayer } from "@/types/editor"
 

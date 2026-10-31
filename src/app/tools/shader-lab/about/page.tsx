@@ -1,18 +1,11 @@
-import type { Metadata, Route } from "next"
+import type { Metadata } from "next"
 import Image from "next/image"
 import Link from "next/link"
 import { Typography } from "@/components/ui/typography"
 import { APP_BASE_URL, APP_OG_IMAGES } from "@/lib/app"
-import { isCommunityEnabled } from "@/lib/community/config"
-import { COMMUNITY_EFFECT_TYPES } from "@/lib/community/scene-effect-filter"
-import {
-  ABOUT_PATH,
-  COMMUNITY_PATH,
-  EDITOR_PATH,
-  effectPagePath,
-  PRIVACY_PATH,
-} from "@/lib/community/scene-links"
-import { LAYER_CATALOG } from "@/lib/editor/config/layer-catalog"
+import { getLayerLabel, LAYER_CATALOG } from "@/lib/editor/config/layer-catalog"
+import { ABOUT_PATH, EDITOR_PATH, PRIVACY_PATH } from "@/lib/editor/paths"
+import { EFFECT_LAYER_TYPES } from "@/types/editor"
 import { PageJsonLd } from "@/lib/structured-data/page-json-ld"
 import { PRODUCT_FACTS } from "@/lib/structured-data/product-facts"
 import { generateBreadcrumbSchema } from "@/lib/structured-data/schemas/breadcrumb"
@@ -23,7 +16,7 @@ import {
 import { generateWebApplicationSchema } from "@/lib/structured-data/schemas/web-application"
 
 const DESCRIPTION =
-  "What Shader Lab is, how the layer-based WebGPU editor works, every effect in the catalog, and answers to common questions."
+  "What Editor Lab is, how the WebGPU video editor works, every effect in the catalog, and answers to common questions."
 
 export const metadata: Metadata = {
   alternates: { canonical: ABOUT_PATH },
@@ -40,34 +33,29 @@ export const metadata: Metadata = {
 
 const FAQ_ITEMS: FaqItem[] = [
   {
-    question: "Is Shader Lab free?",
+    question: "Is Editor Lab free?",
     answer:
-      "Yes. Shader Lab is free to use in the browser, and the runtime and MCP packages are open source. There is no paid tier.",
+      "Yes. Editor Lab is free and open source (Apache-2.0), forked from basement.studio's Shader Lab. There is no paid tier.",
   },
   {
     question: "Do I need an account?",
     answer:
-      "No. You can use the whole editor without signing in — your work autosaves into your browser's own IndexedDB storage and nothing is sent to a server. An account (Google or GitHub) is only needed to save drafts to the cloud or publish scenes to the community gallery.",
+      "No. There are no accounts. Your work autosaves into your browser's own IndexedDB storage and nothing is sent to a server; Cmd/Ctrl+S also saves a .lab project file.",
   },
   {
     question: "What browsers does it work in?",
     answer:
-      "Shader Lab runs on WebGPU, so it needs a browser with WebGPU enabled — recent versions of Chrome and Edge on desktop, and current Safari and Firefox releases.",
+      "Editor Lab runs on WebGPU, so it needs a browser with WebGPU enabled — recent versions of Chrome and Edge on desktop, and current Safari and Firefox releases.",
   },
   {
     question: "Can I use a scene on my own website?",
     answer:
-      "Yes. The @basementstudio/shader-lab npm package is a portable React/WebGPU runtime that renders exported Shader Lab scenes inside any React app.",
+      "Yes. Effects that use the upstream runtime can be rendered in React with basement.studio's @basementstudio/shader-lab package; editing-only features (clips, audio, captions, LUTs) are not part of that runtime.",
   },
   {
     question: "Can AI agents drive the editor?",
     answer:
-      "Yes. The @basementstudio/shader-lab-mcp package is an MCP server that lets an agent like Claude Code control a running editor tab — adding and tweaking layers, writing custom TSL shaders with real compile feedback, and taking canvas screenshots. Open the editor with ?agent=1 to connect.",
-  },
-  {
-    question: "What does remixing mean?",
-    answer:
-      "Every published scene in the community gallery can be opened in the editor and remixed into a new scene. Remixes keep a lineage credit that links back to the original scene and its author.",
+      "Yes. The @basementstudio/shader-lab-mcp package (from upstream) is an MCP server that lets an agent like Claude Code control a running editor tab — adding and tweaking layers, writing custom TSL shaders with real compile feedback, and taking canvas screenshots. Open the editor with ?agent=1 to connect.",
   },
 ]
 
@@ -81,7 +69,7 @@ const SECTIONS: Section[] = [
     heading: "What it is",
     body: [
       PRODUCT_FACTS.description,
-      "Shader Lab is built and operated by basement.studio, the design and engineering studio behind the Geist typeface and websites for companies like Vercel and ElevenLabs.",
+      "Editor Lab is a fork of Shader Lab by basement.studio (Apache-2.0). It is not affiliated with or endorsed by basement.studio.",
     ],
   },
   {
@@ -94,9 +82,19 @@ const SECTIONS: Section[] = [
   },
 ]
 
-export default function AboutPage() {
-  const communityEnabled = isCommunityEnabled()
+// Effects kept only so old projects still open; not advertised.
+const DISCONTINUED_EFFECT_TYPES = new Set<string>([
+  "blur",
+  "directional-blur",
+  "fluted-glass",
+  "smear",
+])
 
+const EFFECT_TYPES = EFFECT_LAYER_TYPES.filter(
+  (type) => !DISCONTINUED_EFFECT_TYPES.has(type)
+).sort((left, right) => getLayerLabel(left).localeCompare(getLayerLabel(right)))
+
+export default function AboutPage() {
   return (
     <main className="mx-auto w-full max-w-[840px] px-5 py-[var(--ds-space-16)] sm:px-6">
       <PageJsonLd
@@ -104,7 +102,7 @@ export default function AboutPage() {
           generateWebApplicationSchema(),
           generateFaqPageSchema(FAQ_ITEMS, ABOUT_PATH),
           generateBreadcrumbSchema([
-            { name: "Shader Lab", path: EDITOR_PATH },
+            { name: "Editor Lab", path: EDITOR_PATH },
             { name: "About", path: ABOUT_PATH },
           ]),
         ]}
@@ -115,10 +113,10 @@ export default function AboutPage() {
           className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
           href={EDITOR_PATH}
         >
-          ← Shader Lab
+          ← Editor Lab
         </Link>
         <Typography as="h1" variant="display">
-          About Shader Lab
+          About Editor Lab
         </Typography>
         <Typography
           as="p"
@@ -126,15 +124,8 @@ export default function AboutPage() {
           tone="secondary"
           variant="body"
         >
-          A free, browser-based editor for stacking and animating shader effects
-          — by{" "}
-          <Link
-            className="text-[var(--ds-color-text-primary)] underline decoration-[var(--ds-border-panel)] underline-offset-[3px] transition-colors hover:decoration-[var(--ds-color-text-primary)]"
-            href={PRODUCT_FACTS.publisher.url}
-          >
-            basement.studio
-          </Link>
-          .
+          A free, browser-based editor for documentary-style video, with
+          shader effects for finishing.
         </Typography>
       </header>
 
@@ -180,7 +171,7 @@ export default function AboutPage() {
           </div>
 
           <ul className="grid list-none grid-cols-1 gap-[var(--ds-space-6)] p-0 sm:grid-cols-2">
-            {COMMUNITY_EFFECT_TYPES.map((type) => {
+            {EFFECT_TYPES.map((type) => {
               const entry = LAYER_CATALOG[type]
 
               return (
@@ -200,16 +191,7 @@ export default function AboutPage() {
                     </span>
                   ) : null}
                   <Typography as="h3" variant="label">
-                    {communityEnabled ? (
-                      <Link
-                        className="transition-opacity duration-160 hover:opacity-75"
-                        href={effectPagePath(type) as Route}
-                      >
-                        {entry.label}
-                      </Link>
-                    ) : (
-                      entry.label
-                    )}
+                    {entry.label}
                   </Typography>
                   {entry.description ? (
                     <Typography
@@ -275,30 +257,6 @@ export default function AboutPage() {
           </Typography>
         </section>
 
-        {communityEnabled ? (
-          <section className="flex flex-col gap-[var(--ds-space-4)]">
-            <Typography as="h2" variant="heading">
-              The community gallery
-            </Typography>
-            <Typography
-              as="p"
-              className="text-pretty leading-[1.65]"
-              tone="secondary"
-              variant="body"
-            >
-              Publishing a scene puts it in the{" "}
-              <Link
-                className="text-[var(--ds-color-text-primary)] underline decoration-[var(--ds-border-panel)] underline-offset-[3px] transition-colors hover:decoration-[var(--ds-color-text-primary)]"
-                href={COMMUNITY_PATH as Route}
-              >
-                community gallery
-              </Link>
-              , where anyone can open it, like it, and remix it into their own
-              scene. Remixes credit the original scene and author through a
-              lineage link.
-            </Typography>
-          </section>
-        ) : null}
 
         <section className="flex flex-col gap-[var(--ds-space-4)]">
           <Typography as="h2" variant="heading">
@@ -341,9 +299,9 @@ export default function AboutPage() {
           </Link>
           <Link
             className="text-[var(--ds-color-text-tertiary)] transition-colors hover:text-[var(--ds-color-text-primary)] type-mono-xs"
-            href={`mailto:${PRODUCT_FACTS.contactEmail}`}
+            href={PRODUCT_FACTS.contactUrl}
           >
-            {PRODUCT_FACTS.contactEmail}
+            Contact
           </Link>
         </footer>
       </div>

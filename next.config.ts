@@ -1,6 +1,4 @@
 import withBundleAnalyzer from "@next/bundle-analyzer"
-import { withSentryConfig } from "@sentry/nextjs"
-import { withBotId } from "botid/next/config"
 import type { NextConfig } from "next"
 import { readEnvList } from "@/lib/read-env"
 
@@ -187,46 +185,8 @@ const bundleAnalyzerPlugin = withBundleAnalyzer({
 })
 
 const NextApp = () => {
-  const plugins = [bundleAnalyzerPlugin, withBotId]
+  const plugins = [bundleAnalyzerPlugin]
   return plugins.reduce((config, plugin) => plugin(config), nextConfig)
 }
 
-// Not the token alone: a dev machine can have one in .env.sentry-build-plugin.
-// Org/project come from the environment so a fork never uploads to someone
-// else's Sentry account.
-const canPublishSentryArtifacts =
-  process.env.VERCEL === "1" &&
-  Boolean(process.env.SENTRY_AUTH_TOKEN) &&
-  Boolean(process.env.SENTRY_ORG) &&
-  Boolean(process.env.SENTRY_PROJECT)
-
-if (process.env.VERCEL_ENV === "production" && !canPublishSentryArtifacts) {
-  console.warn(
-    "[sentry] SENTRY_AUTH_TOKEN / SENTRY_ORG / SENTRY_PROJECT not set — skipping sourcemap upload and release creation. Production stack traces will be minified."
-  )
-}
-
-export default withSentryConfig(NextApp, {
-  ...(process.env.SENTRY_ORG ? { org: process.env.SENTRY_ORG } : {}),
-  ...(process.env.SENTRY_PROJECT ? { project: process.env.SENTRY_PROJECT } : {}),
-  silent: !process.env.VERCEL,
-  widenClientFileUpload: true,
-  tunnelRoute: "/monitoring",
-  // Replay is never initialized in instrumentation-client.ts; strip its
-  // dead weight (and debug logging) from the shipped SDK.
-  bundleSizeOptimizations: {
-    excludeDebugStatements: true,
-    excludeReplayShadowDom: true,
-    excludeReplayIframe: true,
-    excludeReplayWorker: true,
-  },
-  sourcemaps: { disable: !canPublishSentryArtifacts },
-  release: {
-    create: canPublishSentryArtifacts,
-    // Must be explicit: @sentry/nextjs skips release name resolution when
-    // `create` is false, leaving tokenless builds with no release tag at all.
-    ...(process.env.VERCEL_GIT_COMMIT_SHA
-      ? { name: process.env.VERCEL_GIT_COMMIT_SHA }
-      : {}),
-  },
-})
+export default NextApp
