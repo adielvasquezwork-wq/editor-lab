@@ -25,7 +25,8 @@ Starting from upstream commit 92e640d, this fork changes, among others:
 - Documentary finishing: vignette, letterbox, split tone
   (src/renderer/scene-post-process.ts), Color LUT layer
   (src/renderer/color-lut-pass.ts, src/lib/editor/cube-lut.ts), Ken Burns,
-  house easing default, grain frame rate/hold.
+  house easing default, grain frame rate/hold, 3D screen-plane layer
+  (src/renderer/plane-pass.ts, src/lib/editor/screen-plane.ts).
 - Branding, metadata and default copy.
 - Removed upstream's community gallery, accounts/auth, database and Sentry
   integrations (src/app/api, src/app/auth, src/components/community,

@@ -26,6 +26,7 @@ export type LayerKind = (typeof LAYER_KINDS)[number]
 export const SOURCE_LAYER_TYPES = [
   "image",
   "video",
+  "plane",
   "gradient",
   "shape",
   "text",

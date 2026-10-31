@@ -67,7 +67,7 @@ export function planAudioMix(input: {
     // stay silent exactly as before.
     if (
       !clip ||
-      layer.type !== "video" ||
+      (layer.type !== "video" && layer.type !== "plane") ||
       !layer.visible ||
       layer.unavailableLayer ||
       !layer.assetId ||

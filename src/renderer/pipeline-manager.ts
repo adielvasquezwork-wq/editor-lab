@@ -3,6 +3,7 @@ import {
   flattenComposition,
   isCompositionGroup,
 } from "./composition-tree"
+import { PlanePass } from "@/renderer/plane-pass"
 import { ColorLutPass } from "@/renderer/color-lut-pass"
 import { isTimeInClip } from "@/lib/editor/clip"
 import { GroupPass } from "./group-pass"
@@ -1106,6 +1107,10 @@ export class PipelineManager {
       (layer.type === "image" || layer.type === "video")
     ) {
       return new MediaPass(layer.id)
+    }
+
+    if (layer.kind === "source" && layer.type === "plane") {
+      return new PlanePass(layer.id)
     }
 
     if (layer.kind === "source" && layer.type === "gradient") {

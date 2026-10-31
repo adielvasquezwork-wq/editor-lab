@@ -88,15 +88,15 @@ export function parallaxCameraAt(
 
 export class MediaPass extends PassNode {
   private parallaxTime = 0
-  private readonly canvasAspectUniform: Node
+  protected readonly canvasAspectUniform: Node
   private readonly fitModeUniform: Node
   private readonly boundsAlphaUniform: Node
   private readonly offsetXUniform: Node
   private readonly offsetYUniform: Node
   private readonly scaleUniform: Node
-  private readonly textureAspectUniform: Node
-  private mediaTextureNode: Node
-  private readonly placeholder: THREE.Texture
+  protected readonly textureAspectUniform: Node
+  protected mediaTextureNode: Node
+  protected readonly placeholder: THREE.Texture
   private readonly depthPlaceholder: THREE.Texture
   private readonly marchScene: THREE.Scene
   private readonly marchMaterial: THREE.MeshBasicNodeMaterial

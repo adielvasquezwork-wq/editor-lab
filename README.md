@@ -15,6 +15,10 @@ A browser-based WebGPU editor for documentary-style video, forked from
 - **Audio**: music/dialogue/ambience clips plus each video clip's own audio,
   mixed with fades and ducking, identically in preview and export.
 - **Titles**: lower thirds and SRT/VTT captions (import/export).
+- **3D screen plane**: show an image or video on a screen tilted in
+  perspective (tilt/turn/roll, field of view, rounded corners, stroke), with
+  depth output so Focus Blur (Blur From: Depth) blurs along it; every
+  parameter is keyframable.
 - **Finishing**: vignette (in stops), letterbox, split tone, `.cube` LUTs with
   S-Log3 / LogC3 / V-Log input, Ken Burns, house easing default, grain frame
   rate/hold.

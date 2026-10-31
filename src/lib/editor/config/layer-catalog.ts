@@ -323,6 +323,11 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
   video: {
     label: "Video",
   },
+  plane: {
+    description:
+      "Shows an image or video on a screen tilted in 3D perspective, with rounded corners, a stroke, and depth for Focus Blur.",
+    label: "Screen Plane",
+  },
   voxel: {
     description:
       "Rebuilds the image from isometric cubes, with brighter areas rising higher.",
