@@ -28,6 +28,7 @@ import { createPortal } from "react-dom"
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { cn } from "@/lib/cn"
+import type { EditorLabEffectLayerType } from "@/editorlab/effects/ids"
 import {
   EFFECT_PICKER_ORDER,
   getLayerCatalogEntry,
@@ -38,6 +39,7 @@ import {
 } from "@/lib/editor/config/layer-catalog"
 
 export type AddLayerAction =
+  | EditorLabEffectLayerType
   | "annotations"
   | "ascii"
   | "blob-tracking"
@@ -81,7 +83,6 @@ export type AddLayerAction =
   | "plotter"
   | "posterize"
   | "color-lut"
-  | "leave-color"
   | "photographic-cells"
   | "displaced-rings"
   | "slice"

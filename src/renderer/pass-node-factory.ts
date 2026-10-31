@@ -33,7 +33,7 @@ import { PixelationPass } from "@/renderer/pixelation-pass"
 import { PlotterPass } from "@/renderer/plotter-pass"
 import { PosterizePass } from "@/renderer/posterize-pass"
 import { ColorLutPass } from "@/renderer/color-lut-pass"
-import { LeaveColorPass } from "@/editorlab/passes/leave-color-pass"
+import { createEditorLabPass } from "@/editorlab/effects/passes"
 import { PhotographicCellsPass } from "./photographic-cells-pass"
 import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "@/renderer/slice-pass"
@@ -46,6 +46,9 @@ export function createPassNode(
   layerId: string,
   type: EffectLayerType
 ): PassNode {
+  const editorLabPass = createEditorLabPass(type, layerId)
+  if (editorLabPass) return editorLabPass
+
   switch (type) {
     case "annotations":
       return new AnnotationsPass(layerId)
@@ -87,8 +90,6 @@ export function createPassNode(
       return new PosterizePass(layerId)
     case "color-lut":
       return new ColorLutPass(layerId)
-    case "leave-color":
-      return new LeaveColorPass(layerId)
     case "threshold":
       return new ThresholdPass(layerId)
     case "gradient-map":

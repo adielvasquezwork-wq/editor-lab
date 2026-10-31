@@ -1,3 +1,7 @@
+import {
+  EDITORLAB_LAYER_CATALOG,
+  EDITORLAB_PICKER_ORDER,
+} from "@/editorlab/effects/registry"
 import type { LayerType } from "@/types/editor"
 
 export const LAYER_CATALOG_CATEGORIES = ["core", "distort"] as const
@@ -11,6 +15,7 @@ export interface LayerCatalogEntry {
 }
 
 export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
+  ...EDITORLAB_LAYER_CATALOG,
   group: { label: "Group" },
   "photographic-cells": {
     description:
@@ -228,12 +233,6 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Plotter",
     previewSrc: "/examples/effects/plotter.webp",
   },
-  "leave-color": {
-    description:
-      "Turns everything black and white except one colour (e.g. red accents on scanned paper).",
-    category: "core",
-    label: "Leave Color",
-  },
   "color-lut": {
     description:
       "Applies a .cube LUT, with optional S-Log3 / LogC3 / V-Log to Rec.709 conversion for camera footage.",
@@ -362,7 +361,6 @@ export const EFFECT_PICKER_ORDER = [
   "voxel",
   "posterize",
   "color-lut",
-  "leave-color",
   "threshold",
   "gradient-map",
   "lumen-print",
@@ -382,6 +380,7 @@ export const EFFECT_PICKER_ORDER = [
   "edge-detect",
   "displacement-map",
   "chromatic-aberration",
+  ...EDITORLAB_PICKER_ORDER,
 ] as const satisfies readonly LayerType[]
 
 export const NEW_LAYER_TYPES: ReadonlySet<LayerType> = new Set<LayerType>([

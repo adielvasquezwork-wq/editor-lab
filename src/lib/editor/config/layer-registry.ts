@@ -1,3 +1,4 @@
+import { EDITORLAB_LAYER_DEFINITIONS } from "@/editorlab/effects/registry"
 import { MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import {
   EFFECT_PICKER_ORDER,
@@ -3725,53 +3726,6 @@ const colorLutParams = [
     defaultValue: 1,
     key: "intensity",
     label: "Intensity",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-  },
-] as const satisfies ParameterDefinitions
-
-const leaveColorParams = [
-  {
-    defaultValue: "#E0262B",
-    key: "color",
-    label: "Keep Color",
-    type: "color",
-  },
-  {
-    defaultValue: 25,
-    key: "tolerance",
-    label: "Tolerance",
-    max: 180,
-    min: 0,
-    step: 1,
-    type: "number",
-    description: "Hue range kept around the colour, in degrees.",
-  },
-  {
-    defaultValue: 15,
-    key: "softness",
-    label: "Softness",
-    max: 90,
-    min: 0.5,
-    step: 0.5,
-    type: "number",
-  },
-  {
-    defaultValue: 0.12,
-    key: "minChroma",
-    label: "Min Saturation",
-    max: 1,
-    min: 0,
-    step: 0.01,
-    type: "number",
-    description: "Greys and near-greys are never kept, so paper stays neutral.",
-  },
-  {
-    defaultValue: 1,
-    key: "amount",
-    label: "Desaturate",
     max: 1,
     min: 0,
     step: 0.01,
@@ -7937,6 +7891,7 @@ const blobTrackingParams = [
 ] as const satisfies ParameterDefinitions
 
 const layerDefinitions: Record<LayerType, LayerDefinition> = {
+  ...EDITORLAB_LAYER_DEFINITIONS,
   group: { defaultName: "Group", kind: "group", params: [], type: "group" },
   ascii: {
     defaultName: "ASCII",
@@ -8051,12 +8006,6 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: posterizeParams,
     type: "posterize",
-  },
-  "leave-color": {
-    defaultName: "Leave Color",
-    kind: "effect",
-    params: leaveColorParams,
-    type: "leave-color",
   },
   "color-lut": {
     defaultName: "Color LUT",

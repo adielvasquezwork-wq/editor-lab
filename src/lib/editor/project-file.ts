@@ -6,6 +6,7 @@ import {
   normalizeAudioClips,
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
+import { migrateSceneFilmToLayers } from "@/editorlab/effects/migrate-scene-film"
 import { normalizeTimeStep } from "@/editorlab/timing/time-step"
 import { normalizeLayerClip } from "@/lib/editor/clip"
 import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
@@ -639,9 +640,14 @@ export function applyLabProjectFile(
     projectFile.assets.map((asset) => [asset.id, asset])
   )
 
-  const nextLayers = projectFile.layers.map((layer) =>
-    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+  const migrated = migrateSceneFilmToLayers(
+    projectFile.sceneConfig as Record<string, unknown> | undefined,
+    projectFile.layers.map((layer) =>
+      hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+    )
   )
+  const nextLayers = migrated.layers
+  const sceneConfig = migrated.scene
 
   const hasSelectedLayer = nextLayers.some(
     (layer) => layer.id === projectFile.selectedLayerId
@@ -672,14 +678,14 @@ export function applyLabProjectFile(
   useAudioStore.getState().replaceState(audioSnapshot)
 
   const editorStore = useEditorStore.getState()
-  if (projectFile.version >= 2 && projectFile.sceneConfig) {
+  if (projectFile.version >= 2 && sceneConfig) {
     editorStore.setOutputSize(
       projectFile.composition.width,
       projectFile.composition.height
     )
     editorStore.updateSceneConfig(
       normalizeCompositionForDocument(
-        normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+        normalizeSceneConfig(sceneConfig as Partial<SceneConfig>),
         projectFile.composition
       )
     )
@@ -721,9 +727,14 @@ export function buildViewerProjectState(
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
   )
-  const layers = projectFile.layers.map((layer) =>
-    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+  const migrated = migrateSceneFilmToLayers(
+    projectFile.sceneConfig as Record<string, unknown> | undefined,
+    projectFile.layers.map((layer) =>
+      hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+    )
   )
+  const layers = migrated.layers
+  const sceneConfig = migrated.scene
 
   return {
     assets,
@@ -731,9 +742,9 @@ export function buildViewerProjectState(
     composition: projectFile.composition,
     layers,
     sceneConfig:
-      projectFile.version >= 2 && projectFile.sceneConfig
+      projectFile.version >= 2 && sceneConfig
         ? normalizeCompositionForDocument(
-            normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+            normalizeSceneConfig(sceneConfig as Partial<SceneConfig>),
             projectFile.composition
           )
         : DEFAULT_SCENE_CONFIG,

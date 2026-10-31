@@ -1,5 +1,5 @@
 import * as THREE from "three/webgpu"
-import { LeaveColorPass } from "@/editorlab/passes/leave-color-pass"
+import { LeaveColorPass } from "@/editorlab/effects/leave-color/pass"
 
 const enc = (l) => (l <= 0.0031308 ? l * 12.92 : 1.055 * l ** (1 / 2.4) - 0.055)
 const dec = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)

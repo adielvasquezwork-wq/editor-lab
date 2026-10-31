@@ -11,6 +11,7 @@ import type {
   ShaderLabTimelineTrack,
 } from "@basementstudio/shader-lab"
 import { CUSTOM_SHADER_INTERNAL_KEYS } from "@/lib/editor/custom-shader/shared"
+import { EDITORLAB_EFFECT_LAYER_TYPES } from "@/editorlab/effects/ids"
 import { validateLayerHierarchy } from "@/renderer/layer-hierarchy"
 import type {
   EditorAsset,
@@ -76,7 +77,7 @@ const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "model",
   "blur",
   "color-lut",
-  "leave-color",
+  ...EDITORLAB_EFFECT_LAYER_TYPES,
   "plane",
 ] as const)
 
