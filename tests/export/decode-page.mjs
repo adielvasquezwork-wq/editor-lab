@@ -115,3 +115,21 @@ window.measureSpeed = async (url, times) => {
 }
 
 window.ready = true
+
+// Regression: disposing the texture while it holds a decoded VideoFrame (as
+// MediaPass does before disposing the handle) must not throw.
+window.checkDisposeWhileDecoded = async (url) => {
+  const { createVideoTexture } = await import("@/renderer/media-texture")
+  const handle = await createVideoTexture(url)
+  await handle.prepareFrame(0.5)
+  const holdsFrame =
+    typeof VideoFrame !== "undefined" &&
+    handle.texture.image instanceof VideoFrame
+  try {
+    handle.texture.dispose()
+    handle.dispose()
+    return { holdsFrame, ok: true }
+  } catch (error) {
+    return { error: String(error?.message ?? error), holdsFrame, ok: false }
+  }
+}

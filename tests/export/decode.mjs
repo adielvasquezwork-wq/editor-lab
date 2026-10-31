@@ -187,6 +187,18 @@ try {
     `${fallbackOk ? "PASS" : "FAIL"} untagged color falls back to seeking`
   )
 
+  const disposal = await page.evaluate(
+    (u) => window.checkDisposeWhileDecoded(u),
+    "/tagged-25fps.webm"
+  )
+  const disposalOk = disposal.ok && disposal.holdsFrame
+  if (!disposalOk) failed = true
+  console.log(
+    `${disposalOk ? "PASS" : "FAIL"} disposing a texture that holds a decoded frame`,
+    disposal.ok ? "" : (disposal.error ?? ""),
+    disposal.holdsFrame ? "" : "(fast path not exercised)"
+  )
+
   const speed = await page.evaluate(
     ([u, t]) => window.measureSpeed(u, t),
     ["/speed-720p.webm", frames(30, 10)]

@@ -725,9 +725,14 @@ async function runVideoExport(
       await encoder.close()
     }
 
+    // Cleanup failures must never discard a file that was already encoded.
     if (renderer) {
-      renderer.dispose()
-      await renderer.destroyDevice()
+      try {
+        renderer.dispose()
+        await renderer.destroyDevice()
+      } catch (error) {
+        console.warn("[export] renderer cleanup failed", error)
+      }
     }
 
     if (renderCanvas) {

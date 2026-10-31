@@ -337,6 +337,16 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
           }
         }
 
+        // three's VideoTexture.dispose() calls cancelVideoFrameCallback on
+        // its image, which must be the <video>, not a decoded VideoFrame.
+        // MediaPass disposes the texture before the handle, so restore the
+        // element whoever disposes first.
+        const disposeTexture = texture.dispose.bind(texture)
+        texture.dispose = () => {
+          releaseExportFrame()
+          disposeTexture()
+        }
+
         const setPlaybackMode = async (nextMode: VideoPlaybackMode) => {
           mode = nextMode
 
