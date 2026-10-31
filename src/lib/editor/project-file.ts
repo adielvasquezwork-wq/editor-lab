@@ -7,6 +7,7 @@ import {
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
 import { normalizeLayerClip } from "@/lib/editor/clip"
+import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
 import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
@@ -757,7 +758,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
       : typeof sceneConfig.quantizeLevels === "number" &&
         sceneConfig.quantizeLevels !== DEFAULT_SCENE_CONFIG.quantizeLevels
 
-  return {
+  return normalizeSceneFilmFields({
     ...DEFAULT_SCENE_CONFIG,
     ...sceneConfig,
     channelMixer: {
@@ -769,7 +770,7 @@ function normalizeSceneConfig(sceneConfig: Partial<SceneConfig>): SceneConfig {
       ...colorCurves,
     },
     quantizeEnabled,
-  }
+  })
 }
 
 const LEGACY_ASCII_FONT_WEIGHTS: Record<string, number> = {

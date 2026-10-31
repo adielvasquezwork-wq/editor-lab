@@ -228,6 +228,12 @@ export const LAYER_CATALOG: Record<LayerType, LayerCatalogEntry> = {
     label: "Plotter",
     previewSrc: "/examples/effects/plotter.webp",
   },
+  "color-lut": {
+    description:
+      "Applies a .cube LUT, with optional S-Log3 / LogC3 / V-Log to Rec.709 conversion for camera footage.",
+    category: "core",
+    label: "Color LUT",
+  },
   posterize: {
     description:
       "Flattens the image into a few bands of color.",
@@ -344,6 +350,7 @@ export const EFFECT_PICKER_ORDER = [
   "pixelation",
   "voxel",
   "posterize",
+  "color-lut",
   "threshold",
   "gradient-map",
   "lumen-print",

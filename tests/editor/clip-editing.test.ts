@@ -8,7 +8,7 @@ import {
 } from "@/lib/editor/clip-editing"
 import { createLayer } from "@/lib/editor/layers"
 import { useLayerStore } from "@/store/layer-store"
-import { useTimelineStore } from "@/store/timeline-store"
+import { createParamBinding, useTimelineStore } from "@/store/timeline-store"
 import type { EditorLayer } from "@/types/editor"
 
 function seed(layers: EditorLayer[], duration = 10) {
@@ -120,5 +120,62 @@ describe("title helpers", () => {
     const id = addCaptionLayer([{ end: 14, start: 12, text: "Hola" }])
     expect(get(id)?.subtitles).toEqual([{ end: 14, start: 12, text: "Hola" }])
     expect(useTimelineStore.getState().duration).toBe(14)
+  })
+})
+
+describe("Ken Burns", () => {
+  test("adds linear scale/offset keyframes across the clip", async () => {
+    const { applyKenBurns } = await import("@/lib/editor/presets/ken-burns")
+    const layer = {
+      ...createLayer("image"),
+      clip: { end: 7, fadeIn: 0, fadeOut: 0, sourceIn: 0, start: 2 },
+    }
+    seed([layer], 10)
+    expect(applyKenBurns(layer.id)).toBe(true)
+    const tracks = useTimelineStore
+      .getState()
+      .tracks.filter((t) => t.layerId === layer.id)
+    expect(
+      tracks
+        .map((t) => (t.binding.kind === "param" ? t.binding.key : ""))
+        .sort()
+    ).toEqual(["offset", "scale"])
+    for (const track of tracks) {
+      expect(track.keyframes.map((k) => k.time)).toEqual([2, 7])
+      expect(
+        track.keyframes.every(
+          (k) =>
+            k.easing.type === "bezier" &&
+            k.easing.controlPoints.join() === "0,0,1,1"
+        )
+      ).toBe(true)
+    }
+    const scale = tracks.find(
+      (t) => t.binding.kind === "param" && t.binding.key === "scale"
+    )!
+    expect(Number(scale.keyframes[1]!.value)).toBeGreaterThan(
+      Number(scale.keyframes[0]!.value)
+    )
+  })
+
+  test("refuses non-media layers", async () => {
+    const { applyKenBurns } = await import("@/lib/editor/presets/ken-burns")
+    const layer = createLayer("text")
+    seed([layer])
+    expect(applyKenBurns(layer.id)).toBe(false)
+  })
+
+  test("new keyframes default to the house ease", () => {
+    const layer = createLayer("image")
+    seed([layer])
+    const binding = createParamBinding(layer, "scale")!
+    useTimelineStore
+      .getState()
+      .upsertKeyframe({ binding, layerId: layer.id, time: 1, value: 1.2 })
+    const track = useTimelineStore
+      .getState()
+      .tracks.find((t) => t.layerId === layer.id)!
+    const easing = track.keyframes[0]!.easing
+    expect(easing).toEqual({ controlPoints: [0.16, 1, 0.3, 1], type: "bezier" })
   })
 })

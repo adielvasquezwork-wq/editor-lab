@@ -1,4 +1,5 @@
 import { areDefaultColorCurves } from "@/lib/color-curves"
+import { hasActiveFilmFinish } from "@/lib/editor/scene-film"
 import { DEFAULT_SCENE_CONFIG, type SceneConfig } from "@/types/editor"
 
 const SCALAR_ADJUSTMENTS = [
@@ -27,6 +28,9 @@ export function neutralSceneAdjustments(): Partial<SceneConfig> {
     quantizeEnabled: false,
     quantizeLevels: DEFAULT_SCENE_CONFIG.quantizeLevels,
     colorMap: null,
+    letterbox: undefined,
+    splitTone: undefined,
+    vignette: undefined,
   })
 }
 
@@ -41,6 +45,7 @@ export function hasSceneAdjustments(config: SceneConfig): boolean {
     ) ||
     !areDefaultColorCurves(config.colorCurves) ||
     config.quantizeEnabled ||
-    config.colorMap !== null
+    config.colorMap !== null ||
+    hasActiveFilmFinish(config)
   )
 }

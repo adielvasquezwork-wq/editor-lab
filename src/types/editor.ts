@@ -51,6 +51,7 @@ export const EFFECT_LAYER_TYPES = [
   "pattern",
   "plotter",
   "posterize",
+  "color-lut",
   "threshold",
   "gradient-map",
   "lumen-print",
@@ -561,6 +562,57 @@ export interface SceneConfig {
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
   grid?: LayoutGrid
+  /** Edge darkening in photographic stops. Absent = off. */
+  vignette?: SceneVignette | undefined
+  /** Cinema bars to a target aspect (applied last). Absent = off. */
+  letterbox?: SceneLetterbox | undefined
+  /** Tints shadows and highlights separately. Absent = off. */
+  splitTone?: SceneSplitTone | undefined
+}
+
+export interface SceneVignette {
+  /** Stops of darkening at the edge, 0..4 (linear light). */
+  amount: number
+  /** Normalized distance where darkening starts, 0..1. */
+  inner: number
+  /** Normalized distance where it reaches full strength, 0..1.5. */
+  outer: number
+  /** 0 follows the frame shape, 1 is a circle. */
+  roundness: number
+}
+
+export interface SceneLetterbox {
+  /** Target width/height (e.g. 2, 2.39). Wider than the frame adds bars top/bottom; narrower adds side bars. */
+  aspect: number
+  color: string
+}
+
+export interface SceneSplitTone {
+  balance: number
+  highlightAmount: number
+  highlightColor: string
+  shadowAmount: number
+  shadowColor: string
+}
+
+export const DEFAULT_SCENE_VIGNETTE: SceneVignette = {
+  amount: 1,
+  inner: 0.35,
+  outer: 1.05,
+  roundness: 0.5,
+}
+
+export const DEFAULT_SCENE_LETTERBOX: SceneLetterbox = {
+  aspect: 2.39,
+  color: "#000000",
+}
+
+export const DEFAULT_SCENE_SPLIT_TONE: SceneSplitTone = {
+  balance: 0,
+  highlightAmount: 0.25,
+  highlightColor: "#ff9fd0",
+  shadowAmount: 0.25,
+  shadowColor: "#1f8f8f",
 }
 
 export interface LayoutGrid {

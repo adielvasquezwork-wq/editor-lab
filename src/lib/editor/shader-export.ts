@@ -75,6 +75,7 @@ const SUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
 const UNSUPPORTED_SHADER_EXPORT_LAYER_TYPES = new Set<LayerType>([
   "model",
   "blur",
+  "color-lut",
 ] as const)
 
 type SupportedShaderExportLayerType = Extract<

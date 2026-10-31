@@ -79,6 +79,7 @@ export type AddLayerAction =
   | "pixel-sorting"
   | "plotter"
   | "posterize"
+  | "color-lut"
   | "photographic-cells"
   | "displaced-rings"
   | "slice"

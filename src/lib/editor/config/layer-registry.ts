@@ -3605,6 +3605,32 @@ const posterizeParams = [
   },
 ] as const satisfies ParameterDefinitions
 
+const colorLutParams = [
+  {
+    defaultValue: "none",
+    description:
+      "Decode camera log footage to Rec.709 before the LUT. For exact color, use the camera maker's own LUT with Input set to Display.",
+    key: "inputTransform",
+    label: "Input",
+    options: [
+      { label: "Display (Rec.709 / sRGB)", value: "none" },
+      { label: "Sony S-Log3", value: "slog3" },
+      { label: "ARRI LogC3", value: "logc3" },
+      { label: "Panasonic V-Log", value: "vlog" },
+    ],
+    type: "select",
+  },
+  {
+    defaultValue: 1,
+    key: "intensity",
+    label: "Intensity",
+    max: 1,
+    min: 0,
+    step: 0.01,
+    type: "number",
+  },
+] as const satisfies ParameterDefinitions
+
 const thresholdParams = [
   {
     defaultValue: 0.5,
@@ -3981,6 +4007,31 @@ const grainParams = [
     type: "number",
     description:
       "0 holds one grain pattern. At 1 the grain changes 24 times a second, like film; each frame is a new pattern, never a slide.",
+  },
+  {
+    defaultValue: "24",
+    group: "Motion",
+    key: "filmRate",
+    label: "Frame Rate",
+    options: [
+      { label: "23.976", value: "23.976" },
+      { label: "24", value: "24" },
+      { label: "25", value: "25" },
+      { label: "30", value: "30" },
+    ],
+    type: "select",
+    description: "Grain frames per second at Speed 1. Match your edit's frame rate.",
+  },
+  {
+    defaultValue: 1,
+    group: "Motion",
+    key: "hold",
+    label: "Hold",
+    max: 8,
+    min: 1,
+    step: 1,
+    type: "number",
+    description: "Keep each grain pattern for this many frames (2 = grain on twos).",
   },
   {
     defaultValue: 0,
@@ -7852,6 +7903,12 @@ const layerDefinitions: Record<LayerType, LayerDefinition> = {
     kind: "effect",
     params: posterizeParams,
     type: "posterize",
+  },
+  "color-lut": {
+    defaultName: "Color LUT",
+    kind: "effect",
+    params: colorLutParams,
+    type: "color-lut",
   },
   threshold: {
     defaultName: "Threshold",

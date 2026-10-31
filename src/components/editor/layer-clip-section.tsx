@@ -16,6 +16,7 @@ import {
   removeClipFromLayer,
   updateLayerClip,
 } from "@/lib/editor/clip-editing"
+import { applyKenBurns } from "@/lib/editor/presets/ken-burns"
 import { formatSrt, parseSubtitles } from "@/lib/editor/subtitles"
 import { useAssetStore } from "@/store/asset-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -290,6 +291,29 @@ export function LayerClipSection({ layerId }: { layerId: string }) {
 
       {layer.type === "video" && layer.assetId ? (
         <ProxyControl assetId={layer.assetId} />
+      ) : null}
+
+      {layer.type === "image" || layer.type === "video" ? (
+        <Row label="Ken Burns">
+          <div className="flex gap-1.5">
+            <Button
+              onClick={() => applyKenBurns(layerId)}
+              size="compact"
+              title="Slow push-in with a gentle pan across the clip (adds keyframes)"
+              variant="secondary"
+            >
+              In
+            </Button>
+            <Button
+              onClick={() => applyKenBurns(layerId, { reverse: true })}
+              size="compact"
+              title="Slow pull-out across the clip (adds keyframes)"
+              variant="secondary"
+            >
+              Out
+            </Button>
+          </div>
+        </Row>
       ) : null}
 
       {layer.type === "text" ? (

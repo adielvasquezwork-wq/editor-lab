@@ -32,6 +32,7 @@ import { PixelSortingPass } from "@/renderer/pixel-sorting-pass"
 import { PixelationPass } from "@/renderer/pixelation-pass"
 import { PlotterPass } from "@/renderer/plotter-pass"
 import { PosterizePass } from "@/renderer/posterize-pass"
+import { ColorLutPass } from "@/renderer/color-lut-pass"
 import { PhotographicCellsPass } from "./photographic-cells-pass"
 import { DisplacedRingsPass } from "./displaced-rings-pass"
 import { SlicePass } from "@/renderer/slice-pass"
@@ -83,6 +84,8 @@ export function createPassNode(
       return new PlotterPass(layerId)
     case "posterize":
       return new PosterizePass(layerId)
+    case "color-lut":
+      return new ColorLutPass(layerId)
     case "threshold":
       return new ThresholdPass(layerId)
     case "gradient-map":

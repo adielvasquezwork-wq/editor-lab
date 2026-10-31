@@ -19,6 +19,7 @@ export type KeyframeEasing =
   | { type: "step" }
 
 export type EasingPresetName =
+  | "house"
   | "linear"
   | "quickOut"
   | "swiftOut"
@@ -46,6 +47,7 @@ export interface EasingPreset {
 }
 
 export const EASING_PRESETS: readonly EasingPreset[] = [
+  { category: "basic", controlPoints: [0.16, 1, 0.3, 1], label: "House", name: "house" },
   { category: "basic", controlPoints: [0, 0, 1, 1], label: "Linear", name: "linear" },
   { category: "basic", controlPoints: [0.65, 0, 0.35, 1], label: "Smooth", name: "smooth" },
   { category: "expressive", controlPoints: [1, -0.4, 0.35, 0.95], label: "Anticipate", name: "anticipate" },
@@ -77,6 +79,12 @@ export const SMOOTH_EASING: KeyframeEasing = {
 }
 
 export const STEP_EASING: KeyframeEasing = { type: "step" }
+
+/** House ease, cubic-bezier(0.16, 1, 0.3, 1): the default for new keyframes. */
+export const HOUSE_EASING: KeyframeEasing = {
+  controlPoints: [0.16, 1, 0.3, 1],
+  type: "bezier",
+}
 
 /**
  * Evaluate a cubic bezier easing curve at a given progress value.
@@ -139,7 +147,8 @@ export function resolveEasing(progress: number, easing: KeyframeEasing): number 
 
 /**
  * Get the default easing for a given value type.
- * Boolean/select types default to step; continuous types default to smooth.
+ * Boolean/select types default to step; continuous types default to the
+ * house ease. Existing keyframes keep the easing they were saved with.
  */
 export function defaultEasingForValueType(
   valueType: string,
@@ -148,7 +157,7 @@ export function defaultEasingForValueType(
     return { type: "step" }
   }
 
-  return { controlPoints: [0.65, 0, 0.35, 1], type: "bezier" }
+  return { controlPoints: [0.16, 1, 0.3, 1], type: "bezier" }
 }
 
 /**
