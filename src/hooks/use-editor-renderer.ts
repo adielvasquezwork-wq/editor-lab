@@ -1,5 +1,6 @@
 "use client"
 
+import { withPreviewProxies } from "@/store/proxy-store"
 import * as Sentry from "@sentry/nextjs"
 import { useEffect, useRef, useState } from "react"
 import { registerAgentFramePump } from "@/lib/agent-bridge/frame-pump"
@@ -406,7 +407,8 @@ export function useEditorRenderer() {
             editorState.outputSize
           )
           const frame = buildRendererFrame({
-            assets: assetState.assets,
+            // Preview-only proxies (export reads the originals).
+            assets: withPreviewProxies(assetState.assets),
             audio: selectAudioModulationInput(useAudioStore.getState()),
             clockTime,
             delta,

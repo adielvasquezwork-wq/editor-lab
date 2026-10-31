@@ -72,16 +72,18 @@ window.checkAccuracy = async (url, fps, times) => {
   const source = await openExportVideoFrameSource(url, { height, width })
   if (!source) return { fastPath: false }
   const wrong = []
+  let lastPixels = null
   let decodedColorDiff = 0
   let seekColorDiff = 0
   for (const time of times) {
     const expected = Math.min(frameCount - 1, Math.floor(time * fps + 1e-6))
+    // null means "same frame as the previous call".
     const frame = await source.frameAt(time)
-    const [decodedIndex, decodedDiff] = bestMatch(
-      draw(frame, width, height),
-      expected
-    )
-    frame.close()
+    if (frame) {
+      lastPixels = draw(frame, width, height)
+      frame.close()
+    }
+    const [decodedIndex, decodedDiff] = bestMatch(lastPixels, expected)
     await seekVideo(video, time)
     const [seekIndex, seekDiff] = bestMatch(
       draw(video, width, height),
@@ -104,7 +106,7 @@ window.measureSpeed = async (url, times) => {
     width: video.videoWidth,
   })
   let started = performance.now()
-  for (const time of times) (await source.frameAt(time)).close()
+  for (const time of times) (await source.frameAt(time))?.close()
   const decodeMs = performance.now() - started
   source.dispose()
   started = performance.now()

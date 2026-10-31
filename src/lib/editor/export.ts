@@ -6,9 +6,12 @@ import {
   type ExportAudioTrackConfig,
   getEncoderPrimingSeconds,
   planExportAudioSegments,
-  renderExportAudio,
+  type ExportAudioSegment,
+  renderTimelineExportAudio,
   resolveExportAudioConfig,
 } from "@/lib/editor/audio/export-audio"
+import type { AudioDucking } from "@/lib/editor/audio-clips"
+import type { MixSegment } from "@/lib/editor/audio/mix-plan"
 import {
   createVideoExportEncoder,
   getSupportedVideoExportConfig,
@@ -74,6 +77,8 @@ type VideoExportOptions = {
   abortSignal?: AbortSignal
   aspectPreset: ExportAspectPreset
   audioSource?: VideoExportAudioSource | null
+  /** Timeline audio clips + clipped video audio, planned by planAudioMix. */
+  audioMix?: { ducking: AudioDucking | null; segments: MixSegment[] } | null
   duration: number
   fileStream?: FileSystemWritableFileStream | null
   format: VideoExportFormat
@@ -330,8 +335,9 @@ async function prepareExportAudio(
   options: VideoExportOptions
 ): Promise<PreparedExportAudio | null> {
   const source = options.audioSource
+  const mixSegments = options.audioMix?.segments ?? []
 
-  if (!source) {
+  if (!source && mixSegments.length === 0) {
     return null
   }
 
@@ -343,29 +349,66 @@ async function prepareExportAudio(
     )
   }
 
-  let decoded: AudioBuffer | null = await decodeAudioBuffer(
-    source.url,
-    options.abortSignal
-  )
-  throwIfAborted(options.abortSignal)
+  // Audio is rendered from slightly before the start to absorb encoder
+  // priming; both the legacy source and the mix use the same window.
+  const windowStartSeconds =
+    options.startTime + getEncoderPrimingSeconds(config.codec)
+  let legacy: { segments: ExportAudioSegment[]; source: AudioBuffer } | null =
+    null
 
-  const segments = planExportAudioSegments({
-    durationSeconds: options.duration,
-    loop: projectState.timeline.loop,
-    offsetSeconds: source.offsetSeconds,
-    sourceDurationSeconds: decoded.duration,
-    startSeconds: options.startTime + getEncoderPrimingSeconds(config.codec),
-    timelineDurationSeconds: projectState.timeline.duration,
-  })
+  if (source) {
+    const decoded = await decodeAudioBuffer(source.url, options.abortSignal)
+    throwIfAborted(options.abortSignal)
 
-  if (segments.length === 0) {
-    throw new Error(
-      "The exported range does not overlap the audio track. Check the audio offset."
-    )
+    const segments = planExportAudioSegments({
+      durationSeconds: options.duration,
+      loop: projectState.timeline.loop,
+      offsetSeconds: source.offsetSeconds,
+      sourceDurationSeconds: decoded.duration,
+      startSeconds: windowStartSeconds,
+      timelineDurationSeconds: projectState.timeline.duration,
+    })
+
+    if (segments.length === 0 && mixSegments.length === 0) {
+      throw new Error(
+        "The exported range does not overlap the audio track. Check the audio offset."
+      )
+    }
+
+    legacy = { segments, source: decoded }
   }
 
-  const buffer = await renderExportAudio(decoded, segments, options.duration)
-  decoded = null
+  const buffers = new Map<string, AudioBuffer>()
+
+  for (const url of new Set(mixSegments.map((segment) => segment.url))) {
+    throwIfAborted(options.abortSignal)
+
+    try {
+      buffers.set(url, await decodeAudioBuffer(url, options.abortSignal))
+    } catch (error) {
+      if (options.abortSignal?.aborted) throw error
+      // A video without an audio track (or an undecodable file) contributes
+      // silence instead of failing the export.
+    }
+  }
+
+  throwIfAborted(options.abortSignal)
+
+  let buffer: AudioBuffer | null = await renderTimelineExportAudio({
+    legacy,
+    mix:
+      mixSegments.length > 0
+        ? {
+            buffers,
+            ducking: options.audioMix?.ducking ?? null,
+            segments: mixSegments,
+          }
+        : null,
+    totalDurationSeconds: options.duration,
+    windowStartSeconds,
+  })
+  legacy = null
+  buffers.clear()
   throwIfAborted(options.abortSignal)
 
   const chunks: EncodedAudioEntry[] = []
@@ -378,6 +421,7 @@ async function prepareExportAudio(
     config,
     ...(options.abortSignal ? { signal: options.abortSignal } : {}),
   })
+  buffer = null
 
   return { chunks, config }
 }
@@ -475,7 +519,10 @@ async function runVideoExport(
 ): Promise<Blob | null> {
   throwIfAborted(options.abortSignal)
   options.onProgress?.({
-    label: options.audioSource ? "Decoding audio" : "Preparing export",
+    label:
+      options.audioSource || options.audioMix?.segments.length
+        ? "Decoding audio"
+        : "Preparing export",
     value: 0.02,
   })
 

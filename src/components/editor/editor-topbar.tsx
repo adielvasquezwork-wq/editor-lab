@@ -378,7 +378,9 @@ export function EditorTopBar({
         state.bands === previousState.bands &&
         state.links === previousState.links &&
         state.offsetSeconds === previousState.offsetSeconds &&
-        state.source === previousState.source
+        state.source === previousState.source &&
+        state.clips === previousState.clips &&
+        state.ducking === previousState.ducking
       ) {
         return
       }
@@ -393,6 +395,10 @@ export function EditorTopBar({
           links: previousState.links,
           offsetSeconds: previousState.offsetSeconds,
           source: previousState.source,
+          ...(previousState.clips.length > 0
+            ? { clips: previousState.clips }
+            : {}),
+          ...(previousState.ducking ? { ducking: previousState.ducking } : {}),
         }
       )
       const nextSnapshot = buildEditorHistorySnapshotFromState(
@@ -403,6 +409,8 @@ export function EditorTopBar({
           links: state.links,
           offsetSeconds: state.offsetSeconds,
           source: state.source,
+          ...(state.clips.length > 0 ? { clips: state.clips } : {}),
+          ...(state.ducking ? { ducking: state.ducking } : {}),
         }
       )
 

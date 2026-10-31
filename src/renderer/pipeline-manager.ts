@@ -3,6 +3,7 @@ import {
   flattenComposition,
   isCompositionGroup,
 } from "./composition-tree"
+import { isTimeInClip } from "@/lib/editor/clip"
 import { GroupPass } from "./group-pass"
 import { layerMaskSignature, normalizeLayerMask } from "./layer-mask"
 import { float, type TSLNode, texture as tslTexture, uv, vec2 } from "three/tsl"
@@ -332,6 +333,10 @@ export class PipelineManager {
         this.markDirty()
       }
 
+      // Synced every frame (not part of the signature): clip edits change
+      // which source frame is prepared without touching material state.
+      pass.clip = group ? null : (node.layer.clip ?? null)
+
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()
         this.layerSignatures.set(layerId, signature)
@@ -612,8 +617,13 @@ export class PipelineManager {
   }
 
   async prepareForExportFrame(time: number, loop: boolean): Promise<void> {
+    // `enabled` reflects the previous frame. A clip entering its range at
+    // `time` is still disabled, so include it to prepare its first frame.
     const activePasses = this.passes.filter(
-      (pass) => pass.enabled && !this.compilingPasses.has(pass.layerId)
+      (pass) =>
+        (pass.enabled ||
+          (pass.clip !== null && isTimeInClip(pass.clip, time))) &&
+        !this.compilingPasses.has(pass.layerId)
     )
 
     await Promise.all(

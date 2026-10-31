@@ -1,3 +1,6 @@
+import type { AudioClip, AudioDucking } from "@/lib/editor/audio-clips"
+import type { LayerClip } from "@/lib/editor/clip"
+import type { SubtitleCue } from "@/lib/editor/subtitles"
 import type {
   ColorCurve as _ColorCurve,
   ColorCurveChannelId as _ColorCurveChannelId,
@@ -331,6 +334,19 @@ export interface BaseLayer {
   /** Original data for a layer unavailable in this version; never rendered. */
   unavailableLayer?: Record<string, unknown>
 
+  /**
+   * Timeline range this layer occupies (video-editing clip). Absent/null keeps
+   * the legacy behaviour: the layer is always present and video loops.
+   */
+  clip?: LayerClip | null
+
+  /**
+   * Text layers only: timed captions (SRT/VTT). When present the layer shows
+   * the cue at the playhead instead of its static text, and hides between
+   * cues.
+   */
+  subtitles?: SubtitleCue[] | null
+
   parentId?: string | null
   assetId: string | null
   depthAssetId?: string | null
@@ -487,6 +503,10 @@ export interface EditorAudioSnapshot {
   links: AudioLink[]
   offsetSeconds: number
   source: AudioSourceRef | null
+  /** Timeline audio clips (music, VO, ambience). Omitted when empty. */
+  clips?: AudioClip[]
+  /** Music/ambience ducking under dialogue. Omitted = defaults. */
+  ducking?: AudioDucking
 }
 
 export type SidebarView = "properties" | "scene"

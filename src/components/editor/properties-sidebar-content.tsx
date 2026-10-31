@@ -15,6 +15,7 @@ import { PatternMotifControls } from "./pattern-motif-controls"
 import { SvgShapePalette, SvgShapeSource } from "./svg-shape-controls"
 import { ModelControls } from "./model-controls"
 import type { ModelClipInfo } from "@/lib/editor/model-animation"
+import { LayerClipSection } from "@/components/editor/layer-clip-section"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -834,6 +835,8 @@ export function SelectedLayerPropertiesContent({
             )}
           </div>
         </section>
+
+        <LayerClipSection layerId={layerId} />
 
         <LayerMaskSection
           layerId={layerId}

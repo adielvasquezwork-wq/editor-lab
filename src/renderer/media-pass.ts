@@ -1,4 +1,5 @@
 import * as THREE from "three/webgpu"
+import { getClipSourceTime, isTimeInClip } from "@/lib/editor/clip"
 import {
   clamp,
   dFdx,
@@ -128,6 +129,7 @@ export class MediaPass extends PassNode {
   private videoHandle: VideoHandle | null = null
   private videoTexture: THREE.VideoTexture | null = null
   private previewFrozen = false
+  private playbackRate = 1
 
   constructor(layerId: string) {
     super(layerId)
@@ -200,6 +202,8 @@ export class MediaPass extends PassNode {
       this.currentTexture = handle.texture
       this.videoHandle = handle
       this.videoTexture = handle.texture
+      handle.setPlaybackRate(this.playbackRate)
+      handle.setLoop(this.clip === null)
       void handle.setFrozen(this.previewFrozen)
       this.setTextureAspect(handle.texture)
     } catch (cause) {
@@ -450,15 +454,15 @@ export class MediaPass extends PassNode {
     }
 
     if (
-      this.videoHandle &&
       typeof params.playbackRate === "number" &&
       Number.isFinite(params.playbackRate)
     ) {
-      this.videoHandle.setPlaybackRate(params.playbackRate)
+      this.playbackRate = Math.max(0.1, params.playbackRate)
+      this.videoHandle?.setPlaybackRate(params.playbackRate)
     }
 
     if (this.videoHandle) {
-      this.videoHandle.setLoop(true)
+      this.videoHandle.setLoop(this.clip === null)
     }
 
     this.depthInvertUniform.value = params.depthInvert === true ? 1 : 0
@@ -561,8 +565,25 @@ export class MediaPass extends PassNode {
       return
     }
 
-    this.videoHandle.setLoop(true)
-    await this.videoHandle.prepareFrame(time)
+    const clip = this.clip
+
+    if (!clip) {
+      this.videoHandle.setLoop(true)
+      await this.videoHandle.prepareFrame(time)
+      return
+    }
+
+    if (!isTimeInClip(clip, time)) {
+      // Not on screen: skip decoding entirely.
+      return
+    }
+
+    // Clips play once from their in-point and hold the last frame. The handle
+    // multiplies by playbackRate, so pass time in "rate-1" units.
+    this.videoHandle.setLoop(false)
+    await this.videoHandle.prepareFrame(
+      getClipSourceTime(clip, time, this.playbackRate) / this.playbackRate
+    )
   }
 
   override dispose(): void {

@@ -101,6 +101,7 @@ export class TextPass extends PassNode {
   private outputCropAspectRatio: number | null = null
   private params: LayerParameterValues = {}
   private dirty = true
+  private paramsSignature = ""
   private fontLoadToken = 0
 
   private ensureFontLoaded(
@@ -167,6 +168,17 @@ export class TextPass extends PassNode {
   }
 
   override updateParams(params: LayerParameterValues): void {
+    // The pipeline calls this on any layer-signature change, including pure
+    // opacity changes (keyframed or clip fades). Only re-rasterize when the
+    // parameters that affect the text image actually changed.
+    const signature = JSON.stringify(params)
+
+    if (this.textTexture && signature === this.paramsSignature) {
+      this.params = params
+      return
+    }
+
+    this.paramsSignature = signature
     this.params = params
     this.dirty = true
   }

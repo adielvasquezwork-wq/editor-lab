@@ -17,6 +17,8 @@ function cloneHistoryAudio(audio: EditorAudioSnapshot): EditorAudioSnapshot {
     links: audio.links,
     offsetSeconds: audio.offsetSeconds,
     source: audio.source,
+    ...(audio.clips && audio.clips.length > 0 ? { clips: audio.clips } : {}),
+    ...(audio.ducking ? { ducking: audio.ducking } : {}),
   })
 }
 

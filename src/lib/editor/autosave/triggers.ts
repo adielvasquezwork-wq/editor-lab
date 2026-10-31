@@ -14,6 +14,8 @@ export interface AudioTrigger {
   links: unknown
   offsetSeconds: unknown
   source: unknown
+  clips?: unknown
+  ducking?: unknown
 }
 
 export interface EditorTrigger {
@@ -37,7 +39,9 @@ export function audioChanged(a: AudioTrigger, b: AudioTrigger): boolean {
     a.source !== b.source ||
     a.bands !== b.bands ||
     a.links !== b.links ||
-    a.offsetSeconds !== b.offsetSeconds
+    a.offsetSeconds !== b.offsetSeconds ||
+    a.clips !== b.clips ||
+    a.ducking !== b.ducking
   )
 }
 

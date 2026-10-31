@@ -317,6 +317,12 @@ export function createVideoTexture(url: string): Promise<VideoHandle> {
 
           try {
             const frame = await exportSource.frameAt(targetTime)
+
+            if (!frame) {
+              // Same frame as last time; it is still bound to the texture.
+              return exportFrame !== null
+            }
+
             exportFrame?.close()
             exportFrame = frame
             // VideoTexture is typed for <video>, but three uploads VideoFrame

@@ -29,6 +29,7 @@ import {
 import { AudioMeterIcon } from "@/components/editor/audio-link-button"
 import { AudioSourceControl } from "@/components/editor/audio-source-control"
 import { AudioEnvelopeBackdrop } from "@/components/editor/timeline/audio-envelope-backdrop"
+import { TimelineClipTrack } from "@/components/editor/timeline/timeline-clip-track"
 import { CurveEditorPopover } from "@/components/editor/curve-editor"
 import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel"
 import { GlassPanel } from "@/components/ui/glass-panel"
@@ -36,6 +37,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput } from "@/components/ui/number-input"
 import { Typography } from "@/components/ui/typography"
 import { useAudioMonitor } from "@/hooks/use-audio-monitor"
+import { useTimelineAudioPlayback } from "@/hooks/use-timeline-audio-playback"
 import { cn } from "@/lib/cn"
 import type { KeyframeEasing } from "@/lib/easing-curve"
 import { LINEAR_EASING } from "@/lib/easing-curve"
@@ -115,7 +117,7 @@ const GENERAL_TIMELINE_PROPERTIES = [
 
 const COLLAPSED_SHELL_HEIGHT = 46
 const COLLAPSED_SHELL_WIDTH = 660
-const EXPANDED_SHELL_HEIGHT = 380
+const EXPANDED_SHELL_HEIGHT = 440
 const EXPANDED_SHELL_WIDTH = 820
 const SMALL_NUDGE_TIME = 1 / 60
 const LARGE_NUDGE_TIME = 10 / 60
@@ -627,6 +629,7 @@ export function EditorTimelineOverlay() {
   const audioEnabled = useSoundStore((state) => state.enabled)
   const toggleAudioEnabled = useSoundStore((state) => state.toggleEnabled)
   useAudioMonitor(audioEnabled)
+  useTimelineAudioPlayback(audioEnabled)
 
   const layerTracks = useMemo(
     () =>
@@ -1545,6 +1548,8 @@ export function EditorTimelineOverlay() {
                       </Typography>
                     ))}
                   </div>
+
+                  <TimelineClipTrack duration={duration} />
 
                   <div
                     className="relative flex min-h-0 flex-1 flex-col overflow-y-auto"

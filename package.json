@@ -33,6 +33,7 @@
     "start": "next start",
     "test:composition": "bun tests/composition/run.mjs",
     "test:export-decode": "bun tests/export/decode.mjs",
+    "test:export-audio": "bun tests/export/audio-mix.mjs",
     "typecheck": "tsgo --noEmit",
     "typecheck:runtime": "bun run --cwd packages/shader-lab-react typecheck",
     "typecheck:compare": "bun run typecheck:tsc && bun run typecheck",

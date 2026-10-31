@@ -61,6 +61,10 @@ export function cloneLayer(layer: EditorLayer): EditorLayer {
     ...(layer.patternAssetIds
       ? { patternAssetIds: [...layer.patternAssetIds] }
       : {}),
+    ...(layer.clip ? { clip: { ...layer.clip } } : {}),
+    ...(layer.subtitles
+      ? { subtitles: layer.subtitles.map((cue) => ({ ...cue })) }
+      : {}),
     name: `${layer.name} Copy`,
     params: cloneParameterValues(layer.params),
     runtimeError: null,

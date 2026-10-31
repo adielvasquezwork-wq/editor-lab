@@ -29,8 +29,11 @@ const MAX_DECODE_THROUGH_SECONDS = 2
 
 export type ExportVideoFrameSource = {
   dispose: () => void
-  /** Returns a frame owned by the caller (close it when done). */
-  frameAt: (time: number) => Promise<VideoFrame>
+  /**
+   * Returns the frame covering `time`, owned by the caller (close it when
+   * done), or null when that is the same frame the previous call returned.
+   */
+  frameAt: (time: number) => Promise<VideoFrame | null>
 }
 
 type ExpectedSize = { height: number; width: number }
@@ -118,6 +121,7 @@ function createSource(
   let next: VideoSample | null = null
   let exhausted = false
   let disposed = false
+  let lastReturned: VideoSample | null = null
 
   const closeSample = (sample: VideoSample | null) => {
     try {
@@ -135,6 +139,7 @@ function createSource(
     closeSample(next)
     current = null
     next = null
+    lastReturned = null
     exhausted = false
   }
 
@@ -215,6 +220,11 @@ function createSource(
         throw new Error("No decodable frame for the requested time.")
       }
 
+      if (chosen === lastReturned) {
+        return null
+      }
+
+      lastReturned = chosen
       return chosen.toVideoFrame()
     },
   }
