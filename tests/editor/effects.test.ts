@@ -155,3 +155,26 @@ describe("loading a project saved with scene vignette / split tone", () => {
     ])
   })
 })
+
+describe("effect passes agree with their schemas", () => {
+  test("pass fallbacks match schema defaults (empty params render the default look)", async () => {
+    const { readFileSync } = await import("node:fs")
+    for (const effect of EDITORLAB_EFFECTS) {
+      const source = readFileSync(
+        `src/editorlab/effects/${effect.layerType}/pass.ts`,
+        "utf8"
+      )
+      for (const param of effect.params) {
+        if (param.type !== "number") continue
+        const match = source.match(
+          new RegExp(`readNumber\\(\\s*params\\.${param.key},\\s*([-\\d.]+)`)
+        )
+        if (match) {
+          expect(`${effect.id}.${param.key}=${Number(match[1])}`).toBe(
+            `${effect.id}.${param.key}=${param.defaultValue}`
+          )
+        }
+      }
+    }
+  })
+})

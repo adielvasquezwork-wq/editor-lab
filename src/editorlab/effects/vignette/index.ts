@@ -9,7 +9,7 @@ export const vignetteSchema = defineEffectSchema({
   layerType: "vignette",
   params: [
     {
-      defaultValue: 1.6,
+      defaultValue: 2.2,
       description:
         "How much the edge darkens, in stops (each stop halves the light).",
       key: "amount",
@@ -51,7 +51,7 @@ export const vignetteSchema = defineEffectSchema({
       type: "number",
     },
     {
-      defaultValue: 0.35,
+      defaultValue: 0.5,
       description:
         "Corner shape: 0 is oval, 1 is a rounded rectangle (edges darken almost as much as corners).",
       key: "squareness",
