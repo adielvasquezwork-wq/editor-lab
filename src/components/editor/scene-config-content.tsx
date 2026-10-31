@@ -7,7 +7,6 @@ import {
 } from "@/lib/editor/scene-adjustments"
 import { Button } from "@/components/ui/button"
 import { SceneFilmSection } from "@/components/editor/scene-film-section"
-import { LookPresetSection } from "@/editorlab/components/look-preset-section"
 import { ChannelMixerMatrix } from "@/components/ui/channel-mixer-matrix"
 import { ColorPicker } from "@/components/ui/color-picker"
 import { ColorCurvesEditor } from "@/components/ui/color-curves"
@@ -141,7 +140,6 @@ export function SceneConfigContent() {
           Reset all global colors
         </Button>
       </section>
-      <LookPresetSection />
       {/* Composition */}
       <Section title="Composition">
         <Row label="Aspect">
