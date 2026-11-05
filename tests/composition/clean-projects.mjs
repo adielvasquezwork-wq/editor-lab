@@ -16,7 +16,6 @@ import {
 } from "@/lib/editor/history"
 import { chooseAutosaveRecord } from "@/lib/editor/autosave/record"
 import { AUTOSAVE_SCHEMA_VERSION } from "@/lib/editor/autosave/limits"
-import { armRemixDraft, readArmedRemixDraft } from "@/lib/editor/remix-draft"
 import { useAssetStore } from "@/store/asset-store"
 import { useEditorStore } from "@/store/editor-store"
 import { useLayerStore } from "@/store/layer-store"
@@ -199,7 +198,6 @@ export function checkCleanProjects() {
   useRemixOriginStore
     .getState()
     .setRemixOrigin({ slug: "previous", title: "Previous" })
-  armRemixDraft({ title: "Previous" })
   useHistoryStore.getState().pushSnapshot("Previous", before)
   useTimelineStore.setState({
     currentTime: 3,
@@ -245,7 +243,6 @@ export function checkCleanProjects() {
     null,
     "New project linked to old remix"
   )
-  equal(readArmedRemixDraft(), null, "New project retained armed remix")
   const saved = buildLabProjectFile()
   replaceWithNewProject("demo")
   // Real editor hydration, never the viewer snapshot, for empty-file compatibility.

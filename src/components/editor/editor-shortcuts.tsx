@@ -119,8 +119,13 @@ export function EditorShortcuts() {
       // With the timeline open and a track selected, arrows walk keyframes.
       const keyframeNavigation =
         isArrow && timelinePanelOpen && timeline.selectedTrackId !== null
+      // Arrows, Home and End belong to a focused control (slider, button…);
+      // only the comma/period pair steps frames while one has focus.
+      const focused = document.activeElement
+      const nothingFocused =
+        !focused || focused === document.body || focused.tagName === "CANVAS"
 
-      if ((isArrow || isComma) && !keyframeNavigation) {
+      if ((isComma || (isArrow && nothingFocused)) && !keyframeNavigation) {
         event.preventDefault()
         const forward = event.key === "ArrowRight" || event.key === "."
         timeline.stepFrames((forward ? 1 : -1) * (event.shiftKey ? 10 : 1))
@@ -150,7 +155,7 @@ export function EditorShortcuts() {
         return
       }
 
-      if (event.key === "Home" || event.key === "End") {
+      if ((event.key === "Home" || event.key === "End") && nothingFocused) {
         event.preventDefault()
         timeline.setPlaying(false)
         timeline.setCurrentTime(event.key === "Home" ? 0 : timeline.duration)
