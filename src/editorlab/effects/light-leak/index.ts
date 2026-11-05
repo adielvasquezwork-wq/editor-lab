@@ -1,0 +1,102 @@
+import { defineEffectSchema } from "../contract"
+
+export const lightLeakSchema = defineEffectSchema({
+  category: "light",
+  description:
+    "A warm film light leak that sweeps across the frame as Progress goes 0 → 1. Deterministic from Seed and Progress, so keyframe Progress across a cut for a transition.",
+  id: "lightLeak",
+  label: "Light Leak",
+  layerType: "light-leak",
+  params: [
+    {
+      defaultValue: 0.5,
+      description:
+        "0 = not started (no effect), 0.5 = peak, 1 = gone. Keyframe it across a cut.",
+      key: "progress",
+      label: "Progress",
+      max: 1,
+      min: 0,
+      step: 0.01,
+      type: "number",
+    },
+    {
+      defaultValue: 1,
+      key: "intensity",
+      label: "Intensity",
+      max: 3,
+      min: 0,
+      step: 0.01,
+      type: "number",
+    },
+    {
+      defaultValue: 7,
+      description: "Changes the shapes and positions. Same seed, same leak.",
+      input: "int",
+      key: "seed",
+      label: "Seed",
+      max: 9999,
+      min: 0,
+      step: 1,
+      type: "number",
+    },
+    {
+      defaultValue: "right",
+      description: "Which edge the leak comes in from.",
+      key: "edge",
+      label: "From",
+      options: [
+        { label: "Right", value: "right" },
+        { label: "Left", value: "left" },
+        { label: "Top", value: "top" },
+        { label: "Bottom", value: "bottom" },
+      ],
+      type: "select",
+    },
+    {
+      defaultValue: 22,
+      key: "hue",
+      label: "Hue",
+      max: 360,
+      min: 0,
+      step: 1,
+      type: "number",
+      unit: "°",
+    },
+    {
+      defaultValue: 45,
+      description:
+        "How far the second and third blobs drift from the main hue.",
+      key: "hueSpread",
+      label: "Hue Spread",
+      max: 180,
+      min: 0,
+      step: 1,
+      type: "number",
+      unit: "°",
+    },
+    {
+      defaultValue: 1,
+      key: "size",
+      label: "Size",
+      max: 3,
+      min: 0.2,
+      step: 0.01,
+      type: "number",
+    },
+    {
+      defaultValue: "screen",
+      description:
+        "Screen keeps whites from blowing out; Add is harsher and brighter.",
+      key: "blend",
+      label: "Blend",
+      options: [
+        { label: "Screen", value: "screen" },
+        { label: "Add", value: "add" },
+      ],
+      type: "select",
+    },
+  ],
+  seeded: true,
+  stateful: false,
+  version: 1,
+})

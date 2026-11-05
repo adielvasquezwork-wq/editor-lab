@@ -1,4 +1,9 @@
 import {
+  DEFAULT_FRAME_RATE,
+  normalizeFrameRate,
+  stepFrameTime,
+} from "@/editorlab/timing/frame-rate"
+import {
   getMaskParameterDefinition,
   isMaskParamKey,
 } from "@/lib/editor/mask-animation"
@@ -19,6 +24,7 @@ import type {
   ParameterType,
   ParameterValue,
   TimelineKeyframe,
+  TimelineMarker,
   TimelineStateSnapshot,
   TimelineTrack,
 } from "@/types/editor"
@@ -30,6 +36,10 @@ import {
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 
 export interface TimelineStoreState extends TimelineStateSnapshot {
+  /** Project frame rate (frame stepping, timecode, stepped-timing default). */
+  frameRate: number
+  /** Named points (cuts, beats), kept sorted by time. */
+  markers: TimelineMarker[]
   frozen: boolean
   lastRenderedClockTime: number
 }
@@ -61,14 +71,14 @@ export interface TimelineStoreActions {
   addSelectedKeyframes: (
     trackId: string | null,
     keyframeIds: string[],
-    primaryKeyframeId?: string | null,
+    primaryKeyframeId?: string | null
   ) => void
   advance: (delta: number) => void
   clearLayerTracks: (layerId: string) => void
   duplicateLayerTracks: (sourceLayerId: string, targetLayerId: string) => void
   getTrackForBinding: (
     layerId: string,
-    binding: AnimatedPropertyBinding,
+    binding: AnimatedPropertyBinding
   ) => TimelineTrack | null
   nudgeSelectedKeyframes: (delta: number) => void
   pasteKeyframes: (input: PasteKeyframesInput) => void
@@ -84,23 +94,40 @@ export interface TimelineStoreActions {
       | "selectedKeyframeIds"
       | "selectedTrackId"
       | "tracks"
-    >,
+    >
   ) => void
   removeKeyframe: (trackId: string, keyframeId: string) => void
   removeSelectedKeyframes: () => void
   seedDurationFromMedia: (durationSeconds: number | null | undefined) => void
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
+  setFrameRate: (frameRate: number) => void
+  /** Adds a marker (or renames the one within a frame of `time`). Returns its id. */
+  addMarker: (time: number, label?: string) => string
+  removeMarker: (id: string) => void
+  updateMarker: (
+    id: string,
+    patch: Partial<Pick<TimelineMarker, "label" | "time">>
+  ) => void
+  setMarkers: (markers: TimelineMarker[]) => void
+  /** Moves the playhead to the next (+1) or previous (-1) marker and pauses. */
+  jumpToMarker: (direction: 1 | -1) => boolean
+  /** Moves the playhead by whole frames at the project frame rate and pauses. */
+  stepFrames: (delta: number) => void
   setLoop: (loop: boolean) => void
   setFrozen: (frozen: boolean) => void
-  setKeyframeEasing: (trackId: string, keyframeId: string, easing: KeyframeEasing) => void
+  setKeyframeEasing: (
+    trackId: string,
+    keyframeId: string,
+    easing: KeyframeEasing
+  ) => void
   setLastRenderedClockTime: (time: number) => void
   setPlaying: (playing: boolean) => void
   setSelected: (trackId: string | null, keyframeId?: string | null) => void
   setSelectedKeyframes: (
     trackId: string | null,
     keyframeIds: string[],
-    primaryKeyframeId?: string | null,
+    primaryKeyframeId?: string | null
   ) => void
   setTrackEnabled: (trackId: string, enabled: boolean) => void
   setKeyframeTime: (trackId: string, keyframeId: string, time: number) => void
@@ -109,7 +136,7 @@ export interface TimelineStoreActions {
   toggleSelectedKeyframes: (
     trackId: string | null,
     keyframeIds: string[],
-    primaryKeyframeId?: string | null,
+    primaryKeyframeId?: string | null
   ) => void
   togglePlaying: () => void
   upsertKeyframe: (input: UpsertKeyframeInput) => void
@@ -127,11 +154,18 @@ function clampTime(time: number, duration: number): number {
   return Math.min(Math.max(duration, MIN_DURATION), Math.max(0, time))
 }
 
+function sortMarkers(markers: TimelineMarker[]): TimelineMarker[] {
+  return [...markers].sort((left, right) => left.time - right.time)
+}
+
 function sortKeyframes(keyframes: TimelineKeyframe[]): TimelineKeyframe[] {
   return [...keyframes].sort((left, right) => left.time - right.time)
 }
 
-function bindingEquals(left: AnimatedPropertyBinding, right: AnimatedPropertyBinding): boolean {
+function bindingEquals(
+  left: AnimatedPropertyBinding,
+  right: AnimatedPropertyBinding
+): boolean {
   if (left.kind !== right.kind) {
     return false
   }
@@ -148,16 +182,20 @@ function bindingEquals(left: AnimatedPropertyBinding, right: AnimatedPropertyBin
 }
 
 function isAnimatableValueType(
-  valueType: ParameterType | AnimatableValueType,
+  valueType: ParameterType | AnimatableValueType
 ): valueType is AnimatableValueType {
   return valueType !== "text"
 }
 
-function defaultEasingForBinding(binding: AnimatedPropertyBinding): KeyframeEasing {
+function defaultEasingForBinding(
+  binding: AnimatedPropertyBinding
+): KeyframeEasing {
   return defaultEasingForValueType(binding.valueType)
 }
 
-function getLayerBindingValueType(property: LayerAnimatableProperty): "boolean" | "number" {
+function getLayerBindingValueType(
+  property: LayerAnimatableProperty
+): "boolean" | "number" {
   if (property === "visible") {
     return "boolean"
   }
@@ -166,7 +204,7 @@ function getLayerBindingValueType(property: LayerAnimatableProperty): "boolean" 
 }
 
 export function createLayerPropertyBinding(
-  property: LayerAnimatableProperty,
+  property: LayerAnimatableProperty
 ): AnimatedPropertyBinding {
   const labelByProperty: Record<LayerAnimatableProperty, string> = {
     hue: "Hue",
@@ -185,7 +223,7 @@ export function createLayerPropertyBinding(
 
 export function createParamBinding(
   layer: EditorLayer,
-  key: string,
+  key: string
 ): AnimatedPropertyBinding | null {
   const definition = isMaskParamKey(key)
     ? getMaskParameterDefinition(layer.mask?.shape ?? "none", key)
@@ -212,11 +250,11 @@ function cloneTrack(track: TimelineTrack): TimelineTrack {
     keyframes: track.keyframes.map((kf) => ({
       ...kf,
       easing: cloneEasing(
-        kf.easing
-          ?? track.easing
-          ?? (track.interpolation
+        kf.easing ??
+          track.easing ??
+          (track.interpolation
             ? migrateInterpolationToEasing(track.interpolation)
-            : defaultEasingForBinding(track.binding)),
+            : defaultEasingForBinding(track.binding))
       ),
       value: cloneParameterValue(kf.value),
     })),
@@ -230,9 +268,12 @@ function cloneTrack(track: TimelineTrack): TimelineTrack {
 }
 
 function migrateTrackEasing(track: TimelineTrack): TimelineTrack {
-  const fallbackEasing = track.easing
-    ?? (track.interpolation ? migrateInterpolationToEasing(track.interpolation) : null)
-    ?? defaultEasingForBinding(track.binding)
+  const fallbackEasing =
+    track.easing ??
+    (track.interpolation
+      ? migrateInterpolationToEasing(track.interpolation)
+      : null) ??
+    defaultEasingForBinding(track.binding)
 
   return {
     ...track,
@@ -286,14 +327,14 @@ function getKeyframeTrackIdMap(tracks: TimelineTrack[]): Map<string, string> {
 
 function sanitizeSelectionState(
   tracks: TimelineTrack[],
-  selection: TimelineSelectionState,
+  selection: TimelineSelectionState
 ): TimelineSelectionState {
   const trackIds = getTrackIds(tracks)
   const keyframeTrackIdMap = getKeyframeTrackIdMap(tracks)
   let selectedKeyframeIds = dedupeKeyframeIds(
     selection.selectedKeyframeIds.filter((keyframeId) =>
-      keyframeTrackIdMap.has(keyframeId),
-    ),
+      keyframeTrackIdMap.has(keyframeId)
+    )
   )
 
   if (
@@ -301,10 +342,7 @@ function sanitizeSelectionState(
     keyframeTrackIdMap.has(selection.selectedKeyframeId) &&
     !selectedKeyframeIds.includes(selection.selectedKeyframeId)
   ) {
-    selectedKeyframeIds = [
-      selection.selectedKeyframeId,
-      ...selectedKeyframeIds,
-    ]
+    selectedKeyframeIds = [selection.selectedKeyframeId, ...selectedKeyframeIds]
   }
 
   let selectedKeyframeId =
@@ -313,7 +351,9 @@ function sanitizeSelectionState(
       ? selection.selectedKeyframeId
       : null
 
-  if (!(selectedKeyframeId && selectedKeyframeIds.includes(selectedKeyframeId))) {
+  if (
+    !(selectedKeyframeId && selectedKeyframeIds.includes(selectedKeyframeId))
+  ) {
     selectedKeyframeId = selectedKeyframeIds[0] ?? null
   }
 
@@ -335,7 +375,7 @@ function sanitizeSelectionState(
 
 function createSelectionState(
   selectedTrackId: string | null,
-  selectedKeyframeId: string | null,
+  selectedKeyframeId: string | null
 ): TimelineSelectionState {
   return {
     selectedKeyframeId,
@@ -347,7 +387,9 @@ function createSelectionState(
 export const useTimelineStore = create<TimelineStore>((set, get) => ({
   currentTime: 0,
   duration: 10,
+  frameRate: DEFAULT_FRAME_RATE,
   frozen: false,
+  markers: [],
   isPlaying: true,
   lastRenderedClockTime: 0,
   loop: true,
@@ -417,6 +459,101 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     })
   },
 
+  setFrameRate: (frameRate) => {
+    set({ frameRate: normalizeFrameRate(frameRate) })
+  },
+
+  addMarker: (time, label) => {
+    const state = get()
+    const target = clampTime(time, state.duration)
+    const existing = state.markers.find(
+      (marker) => Math.abs(marker.time - target) < 1 / state.frameRate / 2
+    )
+    if (existing) {
+      if (label !== undefined) get().updateMarker(existing.id, { label })
+      return existing.id
+    }
+    const marker: TimelineMarker = {
+      id: crypto.randomUUID(),
+      label: label ?? `M${state.markers.length + 1}`,
+      time: target,
+    }
+    set({ markers: sortMarkers([...state.markers, marker]) })
+    return marker.id
+  },
+
+  removeMarker: (id) => {
+    set((state) => ({
+      markers: state.markers.filter((marker) => marker.id !== id),
+    }))
+  },
+
+  updateMarker: (id, patch) => {
+    set((state) => ({
+      markers: sortMarkers(
+        state.markers.map((marker) =>
+          marker.id === id
+            ? {
+                ...marker,
+                ...(patch.label !== undefined ? { label: patch.label } : {}),
+                ...(patch.time !== undefined
+                  ? { time: clampTime(patch.time, state.duration) }
+                  : {}),
+              }
+            : marker
+        )
+      ),
+    }))
+  },
+
+  setMarkers: (markers) => {
+    set((state) => ({
+      markers: sortMarkers(
+        markers
+          .filter(
+            (marker) =>
+              typeof marker.id === "string" &&
+              typeof marker.label === "string" &&
+              Number.isFinite(marker.time)
+          )
+          .map((marker) => ({
+            id: marker.id,
+            label: marker.label,
+            time: clampTime(marker.time, state.duration),
+          }))
+      ),
+    }))
+  },
+
+  jumpToMarker: (direction) => {
+    const state = get()
+    const epsilon = 1 / state.frameRate / 2
+    const target =
+      direction > 0
+        ? state.markers.find(
+            (marker) => marker.time > state.currentTime + epsilon
+          )
+        : [...state.markers]
+            .reverse()
+            .find((marker) => marker.time < state.currentTime - epsilon)
+    if (!target) return false
+    set({
+      currentTime: clampTime(target.time, state.duration),
+      isPlaying: false,
+    })
+    return true
+  },
+
+  stepFrames: (delta) => {
+    set((state) => ({
+      currentTime: clampTime(
+        stepFrameTime(state.currentTime, state.frameRate, Math.round(delta)),
+        state.duration
+      ),
+      isPlaying: false,
+    }))
+  },
+
   setCurrentTime: (currentTime) => {
     set((state) => {
       const nextTime = clampTime(currentTime, state.duration)
@@ -461,7 +598,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((state) => {
       const targetTime = clampTime(time ?? state.currentTime, state.duration)
       const trackIndex = state.tracks.findIndex(
-        (track) => track.layerId === layerId && bindingEquals(track.binding, binding),
+        (track) =>
+          track.layerId === layerId && bindingEquals(track.binding, binding)
       )
 
       if (trackIndex === -1) {
@@ -498,14 +636,14 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
       }
 
       const existingKeyframe = track.keyframes.find(
-        (keyframe) => Math.abs(keyframe.time - targetTime) <= TIME_EPSILON,
+        (keyframe) => Math.abs(keyframe.time - targetTime) <= TIME_EPSILON
       )
 
       if (existingKeyframe) {
         const nextTracks = [...state.tracks]
         const nextTrack = cloneTrack(track)
         nextTrack.keyframes = nextTrack.keyframes.filter(
-          (keyframe) => keyframe.id !== existingKeyframe.id,
+          (keyframe) => keyframe.id !== existingKeyframe.id
         )
 
         if (nextTrack.keyframes.length === 0) {
@@ -521,10 +659,11 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
                 ? null
                 : state.selectedKeyframeId,
             selectedKeyframeIds: state.selectedKeyframeIds.filter(
-              (keyframeId) => keyframeId !== existingKeyframe.id,
+              (keyframeId) => keyframeId !== existingKeyframe.id
             ),
             selectedTrackId:
-              nextTrack.keyframes.length === 0 && state.selectedTrackId === track.id
+              nextTrack.keyframes.length === 0 &&
+              state.selectedTrackId === track.id
                 ? null
                 : state.selectedTrackId,
           }),
@@ -563,7 +702,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((state) => {
       const targetTime = clampTime(time ?? state.currentTime, state.duration)
       const trackIndex = state.tracks.findIndex(
-        (track) => track.layerId === layerId && bindingEquals(track.binding, binding),
+        (track) =>
+          track.layerId === layerId && bindingEquals(track.binding, binding)
       )
 
       if (trackIndex === -1) {
@@ -601,7 +741,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
       const nextTrack = cloneTrack(track)
       const existingKeyframeIndex = nextTrack.keyframes.findIndex(
-        (keyframe) => Math.abs(keyframe.time - targetTime) <= TIME_EPSILON,
+        (keyframe) => Math.abs(keyframe.time - targetTime) <= TIME_EPSILON
       )
       let selectedKeyframeId = state.selectedKeyframeId
 
@@ -645,29 +785,44 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     })
   },
 
-  setSelectedKeyframes: (selectedTrackId, selectedKeyframeIds, selectedKeyframeId = null) => {
+  setSelectedKeyframes: (
+    selectedTrackId,
+    selectedKeyframeIds,
+    selectedKeyframeId = null
+  ) => {
     set((state) =>
       sanitizeSelectionState(state.tracks, {
         selectedKeyframeId:
           selectedKeyframeId ?? selectedKeyframeIds[0] ?? null,
         selectedKeyframeIds,
         selectedTrackId,
-      }),
+      })
     )
   },
 
-  addSelectedKeyframes: (selectedTrackId, keyframeIds, primaryKeyframeId = null) => {
+  addSelectedKeyframes: (
+    selectedTrackId,
+    keyframeIds,
+    primaryKeyframeId = null
+  ) => {
     set((state) =>
       sanitizeSelectionState(state.tracks, {
         selectedKeyframeId:
-          primaryKeyframeId ?? state.selectedKeyframeId ?? keyframeIds[0] ?? null,
+          primaryKeyframeId ??
+          state.selectedKeyframeId ??
+          keyframeIds[0] ??
+          null,
         selectedKeyframeIds: [...state.selectedKeyframeIds, ...keyframeIds],
         selectedTrackId: selectedTrackId ?? state.selectedTrackId,
-      }),
+      })
     )
   },
 
-  toggleSelectedKeyframes: (selectedTrackId, keyframeIds, primaryKeyframeId = null) => {
+  toggleSelectedKeyframes: (
+    selectedTrackId,
+    keyframeIds,
+    primaryKeyframeId = null
+  ) => {
     set((state) => {
       const toggledKeyframeIds = dedupeKeyframeIds(keyframeIds)
       if (toggledKeyframeIds.length === 0) {
@@ -676,7 +831,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
       const selectedKeyframeIdSet = new Set(state.selectedKeyframeIds)
       const nextSelectedKeyframeIds = state.selectedKeyframeIds.filter(
-        (keyframeId) => !toggledKeyframeIds.includes(keyframeId),
+        (keyframeId) => !toggledKeyframeIds.includes(keyframeId)
       )
 
       for (const keyframeId of toggledKeyframeIds) {
@@ -701,7 +856,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   setTrackEnabled: (trackId, enabled) => {
     set((state) => ({
       tracks: state.tracks.map((track) =>
-        track.id === trackId ? { ...track, enabled } : track,
+        track.id === trackId ? { ...track, enabled } : track
       ),
     }))
   },
@@ -716,7 +871,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
           keyframes: track.keyframes.map((keyframe) =>
             keyframe.id === keyframeId
               ? { ...keyframe, easing: cloneEasing(easing) }
-              : keyframe,
+              : keyframe
           ),
         }
       }),
@@ -727,8 +882,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
     set((state) =>
       sanitizeSelectionState(
         state.tracks,
-        createSelectionState(selectedTrackId, selectedKeyframeId),
-      ),
+        createSelectionState(selectedTrackId, selectedKeyframeId)
+      )
     )
   },
 
@@ -748,8 +903,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
                     ...keyframe,
                     time: clampTime(time, state.duration),
                   }
-                : keyframe,
-            ),
+                : keyframe
+            )
           ),
         }
       }),
@@ -766,7 +921,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
           return {
             ...track,
-            keyframes: track.keyframes.filter((keyframe) => keyframe.id !== keyframeId),
+            keyframes: track.keyframes.filter(
+              (keyframe) => keyframe.id !== keyframeId
+            ),
           }
         })
         .filter((track) => track.keyframes.length > 0)
@@ -774,9 +931,11 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
       return {
         ...sanitizeSelectionState(nextTracks, {
           selectedKeyframeId:
-            state.selectedKeyframeId === keyframeId ? null : state.selectedKeyframeId,
+            state.selectedKeyframeId === keyframeId
+              ? null
+              : state.selectedKeyframeId,
           selectedKeyframeIds: state.selectedKeyframeIds.filter(
-            (selectedId) => selectedId !== keyframeId,
+            (selectedId) => selectedId !== keyframeId
           ),
           selectedTrackId:
             state.selectedTrackId === trackId &&
@@ -800,7 +959,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
         .map((track) => ({
           ...track,
           keyframes: track.keyframes.filter(
-            (keyframe) => !selectedKeyframeIdSet.has(keyframe.id),
+            (keyframe) => !selectedKeyframeIdSet.has(keyframe.id)
           ),
         }))
         .filter((track) => track.keyframes.length > 0)
@@ -830,7 +989,11 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
       return {
         tracks: state.tracks.map((track) => {
-          if (!track.keyframes.some((keyframe) => selectedKeyframeIdSet.has(keyframe.id))) {
+          if (
+            !track.keyframes.some((keyframe) =>
+              selectedKeyframeIdSet.has(keyframe.id)
+            )
+          ) {
             return track
           }
 
@@ -843,8 +1006,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
                       ...keyframe,
                       time: clampTime(keyframe.time + delta, state.duration),
                     }
-                  : keyframe,
-              ),
+                  : keyframe
+              )
             ),
           }
         }),
@@ -859,8 +1022,13 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
       }
 
       const nextTracks = cloneTracks(state.tracks)
-      const trackIndexById = new Map(nextTracks.map((track, index) => [track.id, index]))
-      const anchorTime = clampTime(targetTime ?? state.currentTime, state.duration)
+      const trackIndexById = new Map(
+        nextTracks.map((track, index) => [track.id, index])
+      )
+      const anchorTime = clampTime(
+        targetTime ?? state.currentTime,
+        state.duration
+      )
       const pastedKeyframeIds: string[] = []
       let primaryPastedKeyframeId: string | null = null
       let primaryPastedTrackId: string | null = null
@@ -878,9 +1046,12 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
           continue
         }
 
-        const nextTime = clampTime(anchorTime + item.relativeTime, state.duration)
+        const nextTime = clampTime(
+          anchorTime + item.relativeTime,
+          state.duration
+        )
         const existingKeyframe = track.keyframes.find(
-          (keyframe) => Math.abs(keyframe.time - nextTime) <= TIME_EPSILON,
+          (keyframe) => Math.abs(keyframe.time - nextTime) <= TIME_EPSILON
         )
 
         if (existingKeyframe) {
@@ -921,7 +1092,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
       return {
         ...sanitizeSelectionState(nextTracks, {
-          selectedKeyframeId: primaryPastedKeyframeId ?? pastedKeyframeIds[0] ?? null,
+          selectedKeyframeId:
+            primaryPastedKeyframeId ?? pastedKeyframeIds[0] ?? null,
           selectedKeyframeIds: pastedKeyframeIds,
           selectedTrackId: primaryPastedTrackId ?? state.selectedTrackId,
         }),
@@ -933,7 +1105,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   duplicateLayerTracks: (sourceLayerId, targetLayerId) => {
     set((state) => {
       const sourceTracks = state.tracks.filter(
-        (track) => track.layerId === sourceLayerId,
+        (track) => track.layerId === sourceLayerId
       )
 
       if (sourceTracks.length === 0) {
@@ -960,7 +1132,9 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
   clearLayerTracks: (layerId) => {
     set((state) => {
-      const nextTracks = state.tracks.filter((track) => track.layerId !== layerId)
+      const nextTracks = state.tracks.filter(
+        (track) => track.layerId !== layerId
+      )
 
       return {
         ...sanitizeSelectionState(nextTracks, {
@@ -992,7 +1166,10 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
           return true
         }
 
-        const definition = getParameterDefinition(getLayerDefinition(layer.type).params, track.binding.key)
+        const definition = getParameterDefinition(
+          getLayerDefinition(layer.type).params,
+          track.binding.key
+        )
 
         return Boolean(definition && getAnimatableValueType(definition))
       })
@@ -1011,7 +1188,8 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   getTrackForBinding: (layerId, binding) => {
     return (
       get().tracks.find(
-        (track) => track.layerId === layerId && bindingEquals(track.binding, binding),
+        (track) =>
+          track.layerId === layerId && bindingEquals(track.binding, binding)
       ) ?? null
     )
   },

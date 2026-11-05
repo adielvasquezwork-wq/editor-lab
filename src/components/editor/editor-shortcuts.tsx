@@ -111,6 +111,58 @@ export function EditorShortcuts() {
       return
     }
 
+    // Frame stepping: ← → (or , .) one frame, with Shift ten; Home / End.
+    if (!(event.altKey || event.ctrlKey || event.metaKey)) {
+      const isArrow = event.key === "ArrowLeft" || event.key === "ArrowRight"
+      const isComma = event.key === "," || event.key === "."
+      const timeline = useTimelineStore.getState()
+      // With the timeline open and a track selected, arrows walk keyframes.
+      const keyframeNavigation =
+        isArrow && timelinePanelOpen && timeline.selectedTrackId !== null
+      // Arrows, Home and End belong to a focused control (slider, button…);
+      // only the comma/period pair steps frames while one has focus.
+      const focused = document.activeElement
+      const nothingFocused =
+        !focused || focused === document.body || focused.tagName === "CANVAS"
+
+      if ((isComma || (isArrow && nothingFocused)) && !keyframeNavigation) {
+        event.preventDefault()
+        const forward = event.key === "ArrowRight" || event.key === "."
+        timeline.stepFrames((forward ? 1 : -1) * (event.shiftKey ? 10 : 1))
+        return
+      }
+
+      // Markers: M adds one at the playhead, Shift+M removes it, [ ] jump.
+      if (event.key === "m" || event.key === "M") {
+        event.preventDefault()
+        const marker = timeline.markers.find(
+          (entry) =>
+            Math.abs(entry.time - timeline.currentTime) <
+            1 / timeline.frameRate / 2
+        )
+        if (event.shiftKey) {
+          if (marker) timeline.removeMarker(marker.id)
+        } else if (!marker) {
+          timeline.addMarker(timeline.currentTime)
+          playUISound("action.addLayer")
+        }
+        return
+      }
+
+      if (event.key === "[" || event.key === "]") {
+        event.preventDefault()
+        timeline.jumpToMarker(event.key === "]" ? 1 : -1)
+        return
+      }
+
+      if ((event.key === "Home" || event.key === "End") && nothingFocused) {
+        event.preventDefault()
+        timeline.setPlaying(false)
+        timeline.setCurrentTime(event.key === "Home" ? 0 : timeline.duration)
+        return
+      }
+    }
+
     // Blade: cut the selected layers at the playhead.
     if (
       event.key.toLowerCase() === "b" &&

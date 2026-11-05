@@ -29,8 +29,6 @@ export function neutralSceneAdjustments(): Partial<SceneConfig> {
     quantizeLevels: DEFAULT_SCENE_CONFIG.quantizeLevels,
     colorMap: null,
     letterbox: undefined,
-    splitTone: undefined,
-    vignette: undefined,
   })
 }
 

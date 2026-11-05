@@ -18,6 +18,10 @@ import type { ModelClipInfo } from "@/lib/editor/model-animation"
 import { ColorLutSection } from "@/components/editor/color-lut-section"
 import { LayerClipSection } from "@/components/editor/layer-clip-section"
 import { PlaneSourceSection } from "@/components/editor/plane-source-section"
+import { FreezeFrameSection } from "@/editorlab/components/freeze-frame-section"
+import { MotionSection } from "@/editorlab/components/motion-section"
+import { SnippetsSection } from "@/editorlab/components/snippets-section"
+import { TimeStepSection } from "@/editorlab/components/time-step-section"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
 import { LayerGroupLocation } from "@/components/editor/layer-group-location"
@@ -839,6 +843,14 @@ export function SelectedLayerPropertiesContent({
         </section>
 
         <LayerClipSection layerId={layerId} />
+
+        <TimeStepSection layerId={layerId} />
+
+        <FreezeFrameSection layerId={layerId} />
+
+        <SnippetsSection layerId={layerId} />
+
+        <MotionSection layerId={layerId} />
 
         <LayerMaskSection
           layerId={layerId}

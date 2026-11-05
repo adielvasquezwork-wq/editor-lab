@@ -1,4 +1,8 @@
 import * as THREE from "three/webgpu"
+import {
+  applyTimeModifiers,
+  type LayerTimeModifier,
+} from "@/editorlab/timing/time-step"
 import type { LayerClip } from "@/lib/editor/clip"
 import {
   clamp,
@@ -33,6 +37,13 @@ export class PassNode {
 
   /** Timeline range of the layer, synced by the pipeline every frame. */
   clip: LayerClip | null = null
+  /** Time modifiers (stepped timing, freeze), outermost group first; empty = full rate. */
+  timeModifiers: readonly LayerTimeModifier[] = []
+
+  /** Maps project time to this layer's (stepped / frozen) time. */
+  mapTime(time: number): number {
+    return applyTimeModifiers(time, this.timeModifiers)
+  }
 
   protected inputChanged = true
 

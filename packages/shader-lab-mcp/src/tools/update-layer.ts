@@ -35,6 +35,34 @@ export const schema = {
     ),
   opacity: z.number().optional(),
   saturation: z.number().optional(),
+  timeStep: z
+    .object({
+      fps: z
+        .number()
+        .describe("Frame rate the steps are counted in (24, 25 or 30)"),
+      n: z.number().describe("Frames each pose is held for: 2, 3, 4 or 8"),
+      offset: z
+        .number()
+        .optional()
+        .describe("Shifts the cadence by this many frames"),
+    })
+    .nullable()
+    .optional()
+    .describe(
+      "Stepped timing (on 2s/3s/4s/8s) for this layer, or for everything inside it when it is a group. Keyframes, clips, shader time and video all hold each frame; layers outside keep full rate. Pass null to remove."
+    ),
+  freeze: z
+    .object({
+      from: z.number().describe("Project time (seconds) of the frame to hold"),
+      length: z
+        .number()
+        .describe(
+          "Seconds to hold it; the layer then resumes from where it paused"
+        ),
+    })
+    .nullable()
+    .optional()
+    .describe("Freeze frame for this layer or group. Pass null to remove."),
 }
 
 export const metadata: ToolMetadata = {
@@ -42,7 +70,7 @@ export const metadata: ToolMetadata = {
     title: "Update layer",
   },
   description:
-    "Update layer-level properties: opacity (0-1), hue (-180 to 180), saturation (0-2), blendMode, compositeMode, maskConfig, and the reusable mask (gradient, ellipse, rectangle or brush). For effect-specific parameters use update_layer_params.",
+    "Update layer-level properties: opacity (0-1), hue (-180 to 180), saturation (0-2), blendMode, compositeMode, maskConfig, the reusable mask (gradient, ellipse, rectangle or brush), timeStep (stepped timing on 2s/3s/4s/8s) and freeze (freeze frame). For effect-specific parameters use update_layer_params.",
   name: "update_layer",
 }
 

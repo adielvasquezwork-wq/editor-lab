@@ -1,8 +1,19 @@
+import {
+  setLayerFreeze,
+  setLayerTimeStep,
+} from "@/editorlab/timing/layer-time-step"
+import {
+  normalizeFreeze,
+  normalizeTimeStep,
+} from "@/editorlab/timing/time-step"
 import { getDocumentSize } from "@/lib/editor/composition"
 import { normalizeLayerMask } from "@/renderer/layer-mask"
 import { subscribeToCustomShaderCompiles } from "@/lib/agent-bridge/compile-events"
 import { pumpAgentFrame } from "@/lib/agent-bridge/frame-pump"
-import { getLayerDefinition, getLayerDefinitions } from "@/lib/editor/config/layer-registry"
+import {
+  getLayerDefinition,
+  getLayerDefinitions,
+} from "@/lib/editor/config/layer-registry"
 import { duplicateLayers } from "@/lib/editor/duplicate-layers"
 import { isParameterAnimatable } from "@/lib/editor/parameter-schema"
 import { getSeedableMediaDuration } from "@/lib/editor/timeline-duration"
@@ -185,6 +196,7 @@ function summarizeLayer(layer: EditorLayer, index: number) {
     patternAssetIds: layer.patternAssetIds ?? [],
     blendMode: layer.blendMode,
     compositeMode: layer.compositeMode,
+    freeze: layer.freeze ?? null,
     id: layer.id,
     index,
     kind: layer.kind,
@@ -192,6 +204,7 @@ function summarizeLayer(layer: EditorLayer, index: number) {
     name: layer.name,
     opacity: layer.opacity,
     runtimeError: layer.runtimeError,
+    timeStep: layer.timeStep ?? null,
     type: layer.type,
     visible: layer.visible,
   }
@@ -736,11 +749,7 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
     const layers = useLayerStore.getState().layers
     const fromIndex = layers.findIndex((entry) => entry.id === layer.id)
 
-    if (
-      !Number.isInteger(toIndex) ||
-      toIndex < 0 ||
-      toIndex >= layers.length
-    ) {
+    if (!Number.isInteger(toIndex) || toIndex < 0 || toIndex >= layers.length) {
       throw new AgentCommandError(
         `\`toIndex\` must be an integer between 0 and ${layers.length - 1}.`
       )
@@ -800,6 +809,29 @@ const COMMAND_HANDLERS: Record<string, CommandHandler> = {
     const blendMode = optionalString(payload, "blendMode")
     const compositeMode = optionalString(payload, "compositeMode")
     const maskConfig = payload.maskConfig
+
+    if ("timeStep" in payload) {
+      const timeStep = payload.timeStep
+      if (timeStep !== null && !normalizeTimeStep(timeStep)) {
+        throw new AgentCommandError(
+          "`timeStep` must be null or { n: 2|3|4|8, fps: 24|25|30, offset?: number }."
+        )
+      }
+      setLayerTimeStep(
+        layer.id,
+        timeStep === null ? null : normalizeTimeStep(timeStep)
+      )
+    }
+
+    if ("freeze" in payload) {
+      const freeze = payload.freeze
+      if (freeze !== null && !normalizeFreeze(freeze)) {
+        throw new AgentCommandError(
+          "`freeze` must be null or { from: seconds, length: seconds > 0 }."
+        )
+      }
+      setLayerFreeze(layer.id, freeze === null ? null : normalizeFreeze(freeze))
+    }
 
     if (opacity !== undefined) {
       store.setLayerOpacity(layer.id, opacity)

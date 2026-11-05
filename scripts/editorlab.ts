@@ -1,0 +1,103 @@
+#!/usr/bin/env bun
+/**
+ * Editor Lab CLI.
+ *
+ *   bun run editorlab effects list            JSON list of every effect
+ *   bun run editorlab effects describe <id>   JSON schema of one effect
+ *   bun run editorlab render --in <png dir> --stack <stack.json> --out <png dir>
+ *                                             apply a stack to a PNG sequence (headless)
+ *
+ * <id> is an Editor Lab effect id ("vignette", "splitTone") or any effect
+ * layer type ("split-tone", "focus-blur", "grain"...).
+ */
+import { isStatefulLayerType } from "@/editorlab/effects/determinism"
+import {
+  EDITORLAB_EFFECTS,
+  getEffectSchema,
+} from "@/editorlab/effects/registry"
+import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
+import { LAYER_CATALOG } from "@/lib/editor/config/layer-catalog"
+import { EFFECT_LAYER_TYPES, type LayerType } from "@/types/editor"
+
+function describe(idOrType: string) {
+  const effect = getEffectSchema(idOrType)
+
+  if (effect) {
+    return { ...effect, source: "editorlab" }
+  }
+
+  if ((EFFECT_LAYER_TYPES as readonly string[]).includes(idOrType)) {
+    const definition = getLayerDefinition(idOrType as LayerType)
+    return {
+      description: LAYER_CATALOG[idOrType as LayerType]?.description ?? "",
+      id: idOrType,
+      label: definition.defaultName,
+      layerType: idOrType,
+      params: definition.params,
+      source: "upstream",
+      stateful: isStatefulLayerType(idOrType),
+    }
+  }
+
+  return null
+}
+
+function list() {
+  const editorLabTypes = new Set<string>(
+    EDITORLAB_EFFECTS.map((effect) => effect.layerType)
+  )
+  return [
+    ...EDITORLAB_EFFECTS.map((effect) => ({
+      category: effect.category,
+      id: effect.id,
+      label: effect.label,
+      layerType: effect.layerType,
+      seeded: effect.seeded,
+      source: "editorlab",
+      stateful: effect.stateful,
+    })),
+    ...EFFECT_LAYER_TYPES.filter((type) => !editorLabTypes.has(type)).map(
+      (type) => ({
+        id: type,
+        label: getLayerDefinition(type).defaultName,
+        layerType: type,
+        source: "upstream",
+        stateful: isStatefulLayerType(type),
+      })
+    ),
+  ]
+}
+
+const [group, command, arg] = process.argv.slice(2)
+
+if (group === "render") {
+  const { parseRenderArgs, runRender } = await import("@/editorlab/cli/render")
+  try {
+    const result = await runRender(parseRenderArgs(process.argv.slice(3)))
+    process.stdout.write(
+      `${JSON.stringify({ frames: result.frames, rendered: result.rendered })}\n`
+    )
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+    process.exit(1)
+  }
+  process.exit(0)
+}
+const print = (value: unknown) =>
+  process.stdout.write(`${JSON.stringify(value, null, 2)}\n`)
+
+if (group === "effects" && command === "list") {
+  print(list())
+} else if (group === "effects" && command === "describe" && arg) {
+  const result = describe(arg)
+  if (!result) {
+    process.stderr.write(`Unknown effect: ${arg}\n`)
+    process.exit(1)
+  }
+  print(result)
+} else {
+  process.stderr.write(
+    "Usage:\n  editorlab effects list\n  editorlab effects describe <id>\n  editorlab render --in <png dir> --stack <stack.json> --out <png dir> [--fps 24] [--time-step n] [--software]\n"
+  )
+  process.exit(group ? 1 : 0)
+}

@@ -6,13 +6,25 @@ import {
   normalizeAudioClips,
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
+import { migrateSceneFilmToLayers } from "@/editorlab/effects/migrate-scene-film"
+import {
+  DEFAULT_FRAME_RATE,
+  normalizeFrameRate,
+} from "@/editorlab/timing/frame-rate"
+import {
+  normalizeFreeze,
+  normalizeTimeStep,
+} from "@/editorlab/timing/time-step"
 import { normalizeLayerClip } from "@/lib/editor/clip"
 import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
 import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
-import { isLayerGroup, validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import {
+  isLayerGroup,
+  validateLayerHierarchy,
+} from "@/renderer/layer-hierarchy"
 import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
@@ -228,7 +240,14 @@ export function buildLabProjectFile(): LabProjectFile {
     selectedLayerId: layerState.selectedLayerId,
     timeline: structuredClone({
       duration: timelineState.duration,
+      // Only non-defaults are written, so older files round-trip unchanged.
+      ...(timelineState.frameRate !== DEFAULT_FRAME_RATE
+        ? { frameRate: timelineState.frameRate }
+        : {}),
       loop: timelineState.loop,
+      ...(timelineState.markers.length > 0
+        ? { markers: timelineState.markers }
+        : {}),
       tracks: timelineState.tracks,
     }),
     version: CURRENT_PROJECT_FILE_VERSION,
@@ -490,7 +509,13 @@ const labProjectFileSchema = z.looseObject({
   selectedLayerId: z.string().nullable().optional(),
   timeline: z.looseObject({
     duration: z.number(),
+    frameRate: z.number().optional(),
     loop: z.boolean(),
+    markers: z
+      .array(
+        z.looseObject({ id: z.string(), label: z.string(), time: z.number() })
+      )
+      .optional(),
     tracks: z.array(timelineTrackSchema),
   }),
   version: z.number().int().positive().max(CURRENT_PROJECT_FILE_VERSION),
@@ -558,9 +583,7 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   validateLayerHierarchy(result.data.layers)
   if (
     result.data.version < 7 &&
-    result.data.layers.some((layer) =>
-      isLayerGroup(layer) || layer.parentId
-    )
+    result.data.layers.some((layer) => isLayerGroup(layer) || layer.parentId)
   ) {
     throw new Error("Groups require project version 7 or later.")
   }
@@ -638,9 +661,14 @@ export function applyLabProjectFile(
     projectFile.assets.map((asset) => [asset.id, asset])
   )
 
-  const nextLayers = projectFile.layers.map((layer) =>
-    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+  const migrated = migrateSceneFilmToLayers(
+    projectFile.sceneConfig as Record<string, unknown> | undefined,
+    projectFile.layers.map((layer) =>
+      hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+    )
   )
+  const nextLayers = migrated.layers
+  const sceneConfig = migrated.scene
 
   const hasSelectedLayer = nextLayers.some(
     (layer) => layer.id === projectFile.selectedLayerId
@@ -666,19 +694,23 @@ export function applyLabProjectFile(
   })
 
   useTimelineStore.getState().pruneTracks(nextLayers)
+  useTimelineStore
+    .getState()
+    .setFrameRate(normalizeFrameRate(projectFile.timeline.frameRate))
+  useTimelineStore.getState().setMarkers(projectFile.timeline.markers ?? [])
 
   const audioSnapshot = normalizeProjectAudio(projectFile.audio)
   useAudioStore.getState().replaceState(audioSnapshot)
 
   const editorStore = useEditorStore.getState()
-  if (projectFile.version >= 2 && projectFile.sceneConfig) {
+  if (projectFile.version >= 2 && sceneConfig) {
     editorStore.setOutputSize(
       projectFile.composition.width,
       projectFile.composition.height
     )
     editorStore.updateSceneConfig(
       normalizeCompositionForDocument(
-        normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+        normalizeSceneConfig(sceneConfig as Partial<SceneConfig>),
         projectFile.composition
       )
     )
@@ -720,9 +752,14 @@ export function buildViewerProjectState(
   const assetRefById = new Map(
     projectFile.assets.map((asset) => [asset.id, asset])
   )
-  const layers = projectFile.layers.map((layer) =>
-    hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+  const migrated = migrateSceneFilmToLayers(
+    projectFile.sceneConfig as Record<string, unknown> | undefined,
+    projectFile.layers.map((layer) =>
+      hydrateImportedLayer(layer, assetIds, assetRefById, projectFile.version)
+    )
   )
+  const layers = migrated.layers
+  const sceneConfig = migrated.scene
 
   return {
     assets,
@@ -730,9 +767,9 @@ export function buildViewerProjectState(
     composition: projectFile.composition,
     layers,
     sceneConfig:
-      projectFile.version >= 2 && projectFile.sceneConfig
+      projectFile.version >= 2 && sceneConfig
         ? normalizeCompositionForDocument(
-            normalizeSceneConfig(projectFile.sceneConfig as Partial<SceneConfig>),
+            normalizeSceneConfig(sceneConfig as Partial<SceneConfig>),
             projectFile.composition
           )
         : DEFAULT_SCENE_CONFIG,
@@ -859,7 +896,8 @@ export function migrateLayerParams(
   }
 
   if (layer.type === "model" && params.materialMetalness === undefined) {
-    params.materialMetalness = modelMaterialDefaults(params.material)?.metalness ?? 1
+    params.materialMetalness =
+      modelMaterialDefaults(params.material)?.metalness ?? 1
   }
 
   for (const parameter of getLayerDefinition(layer.type).params) {
@@ -872,12 +910,20 @@ export function migrateLayerParams(
 }
 
 /**
- * Validates the optional editing fields (`clip`, `subtitles`) from untrusted
+ * Validates the optional editing fields (`clip`, `subtitles`, `timeStep`,
+ * `freeze`) from untrusted
  * project files. Absent fields stay absent so legacy projects round-trip
  * byte-for-byte; malformed ones are dropped rather than rejecting the file.
  */
 export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
-  if (!("clip" in layer || "subtitles" in layer)) {
+  if (
+    !(
+      "clip" in layer ||
+      "subtitles" in layer ||
+      "timeStep" in layer ||
+      "freeze" in layer
+    )
+  ) {
     return layer
   }
 
@@ -894,6 +940,18 @@ export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
       layer.type === "text" ? normalizeSubtitleCues(layer.subtitles) : null
     if (cues) next.subtitles = cues
     else delete next.subtitles
+  }
+
+  if ("timeStep" in layer) {
+    const step = normalizeTimeStep(layer.timeStep)
+    if (step) next.timeStep = step
+    else delete next.timeStep
+  }
+
+  if ("freeze" in layer) {
+    const freeze = normalizeFreeze(layer.freeze)
+    if (freeze) next.freeze = freeze
+    else delete next.freeze
   }
 
   return next
@@ -925,8 +983,7 @@ function hydrateImportedLayer(
       ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthFileName}${depthErrorDetail}`
       : null
   const missingMotifId = layer.patternAssetIds?.find((id) => !assetIds.has(id))
-  const linkedAssets =
-    layer.depthAssetId !== undefined ? { depthAssetId } : {}
+  const linkedAssets = layer.depthAssetId !== undefined ? { depthAssetId } : {}
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     const environmentError =

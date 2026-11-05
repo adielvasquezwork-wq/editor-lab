@@ -10,6 +10,13 @@ import {
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { getClipFadeFactor, isTimeInClip } from "@/lib/editor/clip"
 import { getActiveSubtitleText } from "@/lib/editor/subtitles"
+import { autoVelocity } from "@/editorlab/effects/velocity-blur/auto-velocity"
+import { normalizeFrameRate } from "@/editorlab/timing/frame-rate"
+import {
+  applyTimeModifiers,
+  collectLayerTimeModifiers,
+  type LayerTimeModifier,
+} from "@/editorlab/timing/time-step"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
 import type { CompositionNode } from "@/renderer/composition-tree"
@@ -38,6 +45,8 @@ export interface RenderableLayerPass {
   layer: EditorLayer
   params: LayerParameterValues
   patternAssets?: EditorAsset[]
+  /** Time modifiers (stepped timing, freeze) for this layer, outermost group first. */
+  timeModifiers?: LayerTimeModifier[]
 }
 
 export interface RendererFrame {
@@ -95,14 +104,42 @@ function getCachedClone(params: LayerParameterValues): LayerParameterValues {
   return cached
 }
 
+/** Keyframes evaluated per layer time (stepped layers hold their poses). */
+function evaluateSteppedTimeline(
+  layers: EditorLayer[],
+  tracks: TimelineStateSnapshot["tracks"],
+  timeOf: (layer: EditorLayer) => number
+) {
+  const buckets = new Map<number, EditorLayer[]>()
+
+  for (const layer of layers) {
+    const time = timeOf(layer)
+    const bucket = buckets.get(time)
+    if (bucket) bucket.push(layer)
+    else buckets.set(time, [layer])
+  }
+
+  if (buckets.size <= 1) {
+    const [time = 0] = buckets.keys()
+    return evaluateTimelineForLayers(layers, tracks, time)
+  }
+
+  return [...buckets].flatMap(([time, bucket]) =>
+    evaluateTimelineForLayers(bucket, tracks, time)
+  )
+}
+
 export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
-  const keyframeStates = evaluateTimelineForLayers(
+  const timeModifiers = collectLayerTimeModifiers(input.layers)
+  const layerTime = (layer: EditorLayer) =>
+    applyTimeModifiers(input.timeline.currentTime, timeModifiers.get(layer.id))
+  const keyframeStates = evaluateSteppedTimeline(
     input.layers,
     input.timeline.tracks,
-    input.timeline.currentTime
+    layerTime
   )
   const evaluatedLayers = input.audio
     ? applyAudioModulation(
@@ -121,16 +158,19 @@ export function buildRendererFrame(
   const timedOutIds = new Set<string>()
   const layers = input.layers.map((layer) => {
     const evaluation = evaluatedById.get(layer.id)
+    const time = layerTime(layer)
+    const modifiers = timeModifiers.get(layer.id)
     const evaluatedParams = evaluation
-      ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
+      ? stripMaskParams({
+          ...getCachedClone(layer.params),
+          ...evaluation.params,
+        })
       : getCachedClone(layer.params)
     const subtitleText =
       layer.type === "text" && layer.subtitles
-        ? getActiveSubtitleText(layer.subtitles, input.timeline.currentTime)
+        ? getActiveSubtitleText(layer.subtitles, time)
         : null
-    const timedOut =
-      !isTimeInClip(layer.clip, input.timeline.currentTime) ||
-      subtitleText === ""
+    const timedOut = !isTimeInClip(layer.clip, time) || subtitleText === ""
 
     if (
       timedOut &&
@@ -141,10 +181,22 @@ export function buildRendererFrame(
     ) {
       timedOutIds.add(layer.id)
     }
-    const params =
+    let params =
       subtitleText === null
         ? evaluatedParams
         : { ...evaluatedParams, text: subtitleText }
+
+    if (layer.type === "velocity-blur" && params.source !== "manual") {
+      const [velocityX, velocityY] = autoVelocity(
+        layer,
+        input.layers,
+        input.timeline.tracks,
+        time,
+        normalizeFrameRate(input.timeline.frameRate),
+        input.logicalSize ?? input.viewportSize
+      )
+      params = { ...params, velocityX, velocityY }
+    }
     const mask =
       evaluation && layer.mask
         ? applyMaskOverrides(layer.mask, evaluation.params)
@@ -176,8 +228,7 @@ export function buildRendererFrame(
         opacity:
           (typeof evaluation?.properties.opacity === "number"
             ? evaluation.properties.opacity
-            : layer.opacity) *
-          getClipFadeFactor(layer.clip, input.timeline.currentTime),
+            : layer.opacity) * getClipFadeFactor(layer.clip, time),
         saturation:
           typeof evaluation?.properties.saturation === "number"
             ? evaluation.properties.saturation
@@ -189,6 +240,7 @@ export function buildRendererFrame(
             : layer.visible),
       },
       params,
+      ...(modifiers ? { timeModifiers: modifiers } : {}),
     }
   })
 

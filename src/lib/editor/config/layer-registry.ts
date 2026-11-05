@@ -1,3 +1,4 @@
+import { EDITORLAB_LAYER_DEFINITIONS } from "@/editorlab/effects/registry"
 import { MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import {
   EFFECT_PICKER_ORDER,
@@ -7890,6 +7891,7 @@ const blobTrackingParams = [
 ] as const satisfies ParameterDefinitions
 
 const layerDefinitions: Record<LayerType, LayerDefinition> = {
+  ...EDITORLAB_LAYER_DEFINITIONS,
   group: { defaultName: "Group", kind: "group", params: [], type: "group" },
   ascii: {
     defaultName: "ASCII",

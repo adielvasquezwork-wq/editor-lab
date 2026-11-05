@@ -1,4 +1,5 @@
 import type { AudioClip, AudioDucking } from "@/lib/editor/audio-clips"
+import { EDITORLAB_EFFECT_LAYER_TYPES } from "@/editorlab/effects/ids"
 import type { LayerClip } from "@/lib/editor/clip"
 import type { SubtitleCue } from "@/lib/editor/subtitles"
 import type {
@@ -80,6 +81,7 @@ export const EFFECT_LAYER_TYPES = [
   "displacement-map",
   "chromatic-aberration",
   "voxel",
+  ...EDITORLAB_EFFECT_LAYER_TYPES,
 ] as const
 export type EffectLayerType = (typeof EFFECT_LAYER_TYPES)[number]
 
@@ -343,6 +345,19 @@ export interface BaseLayer {
   clip?: LayerClip | null
 
   /**
+   * Stepped timing ("on twos/threes"): the layer, and every layer inside it
+   * when it is a group, is evaluated at time held for `n` frames. Keyframes,
+   * shader time and video frames all step; layers outside keep full rate.
+   */
+  timeStep?: LayerTimeStep | null
+
+  /**
+   * Freeze frame: the layer (or everything in the group) holds the frame at
+   * `from` for `length` seconds, then resumes from where it paused.
+   */
+  freeze?: LayerFreeze | null
+
+  /**
    * Text layers only: timed captions (SRT/VTT). When present the layer shows
    * the cue at the playhead instead of its static text, and hides between
    * cues.
@@ -459,9 +474,18 @@ export interface TimelineTrack {
   layerId: string
 }
 
+/** A named point on the timeline (a cut, a beat, a note). */
+export interface TimelineMarker {
+  id: string
+  label: string
+  time: number
+}
+
 export interface TimelineStateSnapshot {
   currentTime: number
   duration: number
+  /** Project frame rate; optional so older snapshots still type-check. */
+  frameRate?: number
   isPlaying: boolean
   loop: boolean
   selectedKeyframeId: string | null
@@ -563,23 +587,24 @@ export interface SceneConfig {
   quantizeLevels: number
   colorMap: { stops: { position: number; color: string }[] } | null
   grid?: LayoutGrid
-  /** Edge darkening in photographic stops. Absent = off. */
-  vignette?: SceneVignette | undefined
   /** Cinema bars to a target aspect (applied last). Absent = off. */
   letterbox?: SceneLetterbox | undefined
-  /** Tints shadows and highlights separately. Absent = off. */
-  splitTone?: SceneSplitTone | undefined
 }
 
-export interface SceneVignette {
-  /** Stops of darkening at the edge, 0..4 (linear light). */
-  amount: number
-  /** Normalized distance where darkening starts, 0..1. */
-  inner: number
-  /** Normalized distance where it reaches full strength, 0..1.5. */
-  outer: number
-  /** 0 follows the frame shape, 1 is a circle. */
-  roundness: number
+export interface LayerFreeze {
+  /** Project time (seconds) of the frame to hold. */
+  from: number
+  /** How long the hold lasts, in seconds. */
+  length: number
+}
+
+export interface LayerTimeStep {
+  /** Frames each pose is held for (2 = on twos). */
+  n: number
+  /** Frame rate the steps are counted in; match the export fps for exact repeats. */
+  fps: number
+  /** Shifts the cadence by this many frames. */
+  offset: number
 }
 
 export interface SceneLetterbox {
@@ -588,32 +613,9 @@ export interface SceneLetterbox {
   color: string
 }
 
-export interface SceneSplitTone {
-  balance: number
-  highlightAmount: number
-  highlightColor: string
-  shadowAmount: number
-  shadowColor: string
-}
-
-export const DEFAULT_SCENE_VIGNETTE: SceneVignette = {
-  amount: 1,
-  inner: 0.35,
-  outer: 1.05,
-  roundness: 0.5,
-}
-
 export const DEFAULT_SCENE_LETTERBOX: SceneLetterbox = {
   aspect: 2.39,
   color: "#000000",
-}
-
-export const DEFAULT_SCENE_SPLIT_TONE: SceneSplitTone = {
-  balance: 0,
-  highlightAmount: 0.25,
-  highlightColor: "#ff9fd0",
-  shadowAmount: 0.25,
-  shadowColor: "#1f8f8f",
 }
 
 export interface LayoutGrid {
@@ -753,7 +755,12 @@ export interface ProjectPresetConfig {
   exportedAt: string
   layers: EditorLayer[]
   selectedLayerId: string | null
-  timeline: Pick<TimelineStateSnapshot, "duration" | "loop" | "tracks">
+  timeline: Pick<TimelineStateSnapshot, "duration" | "loop" | "tracks"> & {
+    /** Project frame rate; absent in older files (24). */
+    frameRate?: number
+    /** Timeline markers; absent in older files. */
+    markers?: TimelineMarker[]
+  }
   version: number
 }
 
