@@ -19,6 +19,7 @@ import { ColorLutSection } from "@/components/editor/color-lut-section"
 import { LayerClipSection } from "@/components/editor/layer-clip-section"
 import { PlaneSourceSection } from "@/components/editor/plane-source-section"
 import { FreezeFrameSection } from "@/editorlab/components/freeze-frame-section"
+import { SnippetsSection } from "@/editorlab/components/snippets-section"
 import { TimeStepSection } from "@/editorlab/components/time-step-section"
 import { LayerMaskSection } from "./layer-mask-section"
 import { useTextEditStore } from "@/store/text-edit-store"
@@ -845,6 +846,8 @@ export function SelectedLayerPropertiesContent({
         <TimeStepSection layerId={layerId} />
 
         <FreezeFrameSection layerId={layerId} />
+
+        <SnippetsSection layerId={layerId} />
 
         <LayerMaskSection
           layerId={layerId}

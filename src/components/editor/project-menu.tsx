@@ -1,8 +1,21 @@
 "use client"
 
 import { ChevronDownIcon } from "@radix-ui/react-icons"
-import { Menu, MenuItem } from "@/components/ui/menu"
+import { Menu, MenuItem, MenuSeparator } from "@/components/ui/menu"
+import {
+  copyStackToClipboard,
+  downloadStackFile,
+  openStackFile,
+  pasteStackFromClipboard,
+  type StackActionResult,
+} from "@/editorlab/stack/stack-clipboard"
 import { startProject } from "@/lib/editor/project-start"
+
+function report(result: StackActionResult | Promise<StackActionResult>): void {
+  void Promise.resolve(result).then((outcome) => {
+    if (!outcome.ok) window.alert(outcome.message)
+  })
+}
 
 export function ProjectMenu({ mobile = false }: { mobile?: boolean }) {
   return (
@@ -27,6 +40,19 @@ export function ProjectMenu({ mobile = false }: { mobile?: boolean }) {
         New blank project
       </MenuItem>
       <MenuItem onClick={() => startProject("demo")}>Open demo</MenuItem>
+      <MenuSeparator />
+      <MenuItem onClick={() => report(copyStackToClipboard())}>
+        Copy effect stack
+      </MenuItem>
+      <MenuItem onClick={() => report(pasteStackFromClipboard("replace"))}>
+        Paste effect stack
+      </MenuItem>
+      <MenuItem onClick={() => report(downloadStackFile())}>
+        Save effect stack…
+      </MenuItem>
+      <MenuItem onClick={() => report(openStackFile("replace"))}>
+        Open effect stack…
+      </MenuItem>
     </Menu>
   )
 }
