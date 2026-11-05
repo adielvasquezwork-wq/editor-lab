@@ -4,6 +4,8 @@
  *
  *   bun run editorlab effects list            JSON list of every effect
  *   bun run editorlab effects describe <id>   JSON schema of one effect
+ *   bun run editorlab render --in <png dir> --stack <stack.json> --out <png dir>
+ *                                             apply a stack to a PNG sequence (headless)
  *
  * <id> is an Editor Lab effect id ("vignette", "splitTone") or any effect
  * layer type ("split-tone", "focus-blur", "grain"...).
@@ -67,6 +69,20 @@ function list() {
 }
 
 const [group, command, arg] = process.argv.slice(2)
+
+if (group === "render") {
+  const { parseRenderArgs, runRender } = await import("@/editorlab/cli/render")
+  try {
+    const result = await runRender(parseRenderArgs(process.argv.slice(3)))
+    process.stdout.write(
+      `${JSON.stringify({ frames: result.frames, rendered: result.rendered })}\n`
+    )
+  } catch (error) {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`)
+    process.exit(1)
+  }
+  process.exit(0)
+}
 const print = (value: unknown) =>
   process.stdout.write(`${JSON.stringify(value, null, 2)}\n`)
 
@@ -81,7 +97,7 @@ if (group === "effects" && command === "list") {
   print(result)
 } else {
   process.stderr.write(
-    "Usage:\n  editorlab effects list\n  editorlab effects describe <id>\n"
+    "Usage:\n  editorlab effects list\n  editorlab effects describe <id>\n  editorlab render --in <png dir> --stack <stack.json> --out <png dir> [--fps 24] [--time-step n] [--software]\n"
   )
   process.exit(group ? 1 : 0)
 }

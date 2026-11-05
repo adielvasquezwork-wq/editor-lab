@@ -17,6 +17,7 @@ import {
   type LayerTimeStep,
   type LayerType,
   type ParameterValue,
+  type SceneConfig,
   type TimelineKeyframe,
   type TimelineTrack,
 } from "@/types/editor"
@@ -66,6 +67,8 @@ export interface EffectStack {
   format: typeof STACK_FORMAT
   fps?: number
   layers: StackLayer[]
+  /** Optional scene settings (e.g. letterbox) applied after the layers. */
+  scene?: Partial<SceneConfig>
   version: typeof STACK_VERSION
 }
 
@@ -228,6 +231,9 @@ export function parseEffectStack(input: unknown): EffectStack {
     format: STACK_FORMAT,
     ...(typeof candidate.fps === "number" ? { fps: candidate.fps } : {}),
     layers,
+    ...(candidate.scene && typeof candidate.scene === "object"
+      ? { scene: candidate.scene as Partial<SceneConfig> }
+      : {}),
     version: STACK_VERSION,
   }
 }

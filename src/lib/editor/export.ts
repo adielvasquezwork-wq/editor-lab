@@ -513,6 +513,148 @@ export async function exportVideo(
   }
 }
 
+export interface FrameSequenceExportOptions {
+  abortSignal?: AbortSignal
+  aspectPreset: ExportAspectPreset
+  duration: number
+  fps: number
+  /** Receives each frame as a PNG, in order. Frame 0 is `startTime`. */
+  onFrame: (frame: { blob: Blob; index: number; time: number }) => Promise<void>
+  onProgress?: (progress: { label: string; value: number }) => void
+  qualityPreset: ExportQualityPreset
+  startTime: number
+  width: number
+  height: number
+}
+
+/**
+ * Renders the range as PNG frames (frame i at startTime + i / fps), the
+ * same way video export does but handing each frame to `onFrame`. For
+ * HyperFrames and the stage-2 pipeline, which read PNG sequences.
+ */
+export async function exportFrameSequence(
+  projectState: RenderProjectState,
+  options: FrameSequenceExportOptions
+): Promise<number> {
+  const releasePreviewLock = acquirePreviewRenderLock("export")
+
+  try {
+    return await runFrameSequenceExport(projectState, options)
+  } finally {
+    releasePreviewLock()
+  }
+}
+
+async function runFrameSequenceExport(
+  projectState: RenderProjectState,
+  options: FrameSequenceExportOptions
+): Promise<number> {
+  throwIfAborted(options.abortSignal)
+  options.onProgress?.({ label: "Preparing export", value: 0.02 })
+
+  const renderCanvas = createHiddenRenderCanvas()
+  let renderer: Awaited<ReturnType<typeof createExportRenderer>> | null = null
+
+  try {
+    const maxExportDimension = await getMaxExportDimension()
+    const maxAllowedDimension = Math.min(
+      maxExportDimension,
+      getMaxDimensionForQuality(options.qualityPreset)
+    )
+    const exportSize = clampExportSize(
+      { height: options.height, width: options.width },
+      maxAllowedDimension
+    )
+    const sourceRenderSize = getSourceRenderSizeForExport(
+      projectState.compositionSize,
+      options.aspectPreset,
+      exportSize
+    )
+    const outputCanvas = document.createElement("canvas")
+    outputCanvas.width = exportSize.width
+    outputCanvas.height = exportSize.height
+    const cropAspectRatio = getAspectRatio(
+      projectState.compositionSize,
+      options.aspectPreset
+    )
+    const totalFrames = Math.max(1, Math.round(options.duration * options.fps))
+    renderer = await createExportRenderer(renderCanvas)
+
+    await prewarmExportFrame(renderer, renderCanvas, projectState, {
+      cropAspectRatio,
+      logicalSize: projectState.compositionSize,
+      renderSize: sourceRenderSize,
+      time: options.startTime,
+    })
+
+    const renderStartedAt = performance.now()
+    let lastProgressAt = renderStartedAt
+
+    for (let frameIndex = 0; frameIndex < totalFrames; frameIndex += 1) {
+      throwIfAborted(options.abortSignal)
+      const time = resolveExportTime(
+        options.startTime + frameIndex / options.fps,
+        projectState.timeline.duration,
+        projectState.timeline.loop
+      )
+
+      await renderFrameToCanvas(renderer, renderCanvas, projectState, {
+        bootstrapPasses: frameIndex === 0,
+        cropAspectRatio,
+        delta: frameIndex === 0 ? 0 : 1 / options.fps,
+        logicalSize: projectState.compositionSize,
+        renderSize: sourceRenderSize,
+        time,
+      })
+      cropCanvasToAspect(
+        renderCanvas,
+        outputCanvas,
+        options.aspectPreset,
+        projectState.compositionSize
+      )
+
+      const blob = await canvasToBlob(outputCanvas, "image/png")
+
+      if (!blob) {
+        throw new Error(`Could not encode frame ${frameIndex} as PNG.`)
+      }
+
+      await options.onFrame({ blob, index: frameIndex, time })
+      throwIfAborted(options.abortSignal)
+
+      const now = performance.now()
+      if (
+        frameIndex === totalFrames - 1 ||
+        now - lastProgressAt >= PROGRESS_INTERVAL_MS
+      ) {
+        lastProgressAt = now
+        options.onProgress?.({
+          label: buildRenderLabel(
+            frameIndex + 1,
+            totalFrames,
+            renderStartedAt,
+            options.fps
+          ),
+          value: 0.05 + ((frameIndex + 1) / totalFrames) * 0.93,
+        })
+      }
+    }
+
+    return totalFrames
+  } finally {
+    if (renderer) {
+      try {
+        renderer.dispose()
+        await renderer.destroyDevice()
+      } catch (error) {
+        console.warn("[export] renderer cleanup failed", error)
+      }
+    }
+
+    destroyHiddenRenderCanvas(renderCanvas)
+  }
+}
+
 async function runVideoExport(
   projectState: RenderProjectState,
   options: VideoExportOptions

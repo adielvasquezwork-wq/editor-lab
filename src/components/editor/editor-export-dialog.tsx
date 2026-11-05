@@ -4,6 +4,13 @@ import {
   describeDeterminismIssues,
   findDeterminismIssues,
 } from "@/editorlab/effects/determinism"
+import {
+  createDirectorySink,
+  createZipSink,
+  type DirectoryHandleLike,
+  type FrameSink,
+  frameFileName,
+} from "@/editorlab/export/frame-sink"
 import { DEFAULT_AUDIO_DUCKING } from "@/lib/editor/audio-clips"
 import { planAudioMix } from "@/lib/editor/audio/mix-plan"
 import { getDocumentSize } from "@/lib/editor/composition"
@@ -40,6 +47,7 @@ import {
   clampExportSize,
   type ExportAspectPreset,
   type ExportQualityPreset,
+  exportFrameSequence,
   exportStillImage,
   exportVideo,
   getAspectRatioForPreset,
@@ -83,7 +91,7 @@ import {
   useTimelineStore,
 } from "@/store"
 
-type ExportTab = "image" | "project" | "shader" | "video"
+type ExportTab = "frames" | "image" | "project" | "shader" | "video"
 
 const QUALITY_LABELS: Record<ExportQualityPreset, string> = {
   draft: "Draft",
@@ -123,6 +131,41 @@ const QUALITY_SOUND_MAP: Record<ExportQualityPreset, UISoundId> = {
   standard: "action.qualityStandard",
   high: "action.qualityHigh",
   ultra: "action.qualityUltra",
+}
+
+type DirectoryPickerWindow = Window & {
+  showDirectoryPicker?: (options?: {
+    mode?: "read" | "readwrite"
+  }) => Promise<DirectoryHandleLike>
+}
+
+function supportsDirectoryPicker(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof (window as DirectoryPickerWindow).showDirectoryPicker === "function"
+  )
+}
+
+async function openZipFileStream(
+  fileName: string
+): Promise<FileSystemWritableFileStream | null> {
+  const picker =
+    typeof window === "undefined"
+      ? undefined
+      : (window as SaveFilePickerWindow).showSaveFilePicker
+
+  if (typeof picker !== "function") {
+    return null
+  }
+
+  const handle = await picker({
+    suggestedName: fileName,
+    types: [
+      { accept: { "application/zip": [".zip"] }, description: "ZIP archive" },
+    ],
+  })
+
+  return await handle.createWritable()
 }
 
 type SaveFilePickerWindow = Window & {
@@ -305,6 +348,10 @@ export function EditorExportDialog({
     audioLinkCount > 0 && audioSourceRef !== null && audioStatus !== "ready"
   const [videoFps, setVideoFps] = useState(
     () => useTimelineStore.getState().frameRate
+  )
+  const [framePrefix, setFramePrefix] = useState("frame")
+  const [frameDestination, setFrameDestination] = useState<"folder" | "zip">(
+    () => (supportsDirectoryPicker() ? "folder" : "zip")
   )
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
@@ -766,6 +813,88 @@ export function EditorExportDialog({
     }
   }
 
+  async function handleFramesExport() {
+    clearFeedback()
+
+    if (videoExportAbortRef.current) {
+      videoExportAbortRef.current.abort()
+      return
+    }
+
+    const prefix = framePrefix.trim() || "frame"
+    let sink: FrameSink
+    let zipFileName: string | null = null
+
+    try {
+      if (frameDestination === "folder") {
+        const picker = (window as DirectoryPickerWindow).showDirectoryPicker
+        if (typeof picker !== "function") {
+          throw new Error(
+            "This browser cannot write into a folder. Choose ZIP instead."
+          )
+        }
+        sink = createDirectorySink(await picker({ mode: "readwrite" }), prefix)
+      } else {
+        zipFileName = buildDownloadName("zip")
+        sink = createZipSink(
+          prefix,
+          supportsSaveFilePicker() ? await openZipFileStream(zipFileName) : null
+        )
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return
+      }
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "Could not open the destination."
+      )
+      return
+    }
+
+    setIsWorking(true)
+    const abortController = new AbortController()
+    videoExportAbortRef.current = abortController
+
+    try {
+      const count = await exportFrameSequence(buildRenderProjectState(), {
+        abortSignal: abortController.signal,
+        aspectPreset: videoAspect,
+        duration: Math.max(0.25, videoDuration),
+        fps: Math.max(1, videoFps),
+        onFrame: ({ blob, index }) => sink.write(index, blob),
+        onProgress: setVideoProgress,
+        qualityPreset: videoQuality,
+        startTime: Math.max(0, videoStart),
+        width: videoSize.width,
+        height: videoSize.height,
+      })
+      setVideoProgress({ label: "Writing", value: 0.99 })
+      const blob = await sink.finish()
+      if (blob && zipFileName) {
+        downloadBlob(blob, zipFileName)
+      }
+      setVideoProgress({ label: "Export complete", value: 1 })
+      setStatusMessage(
+        `${count} PNG frame${count === 1 ? "" : "s"} written (${frameFileName(prefix, 0)} …) at ${videoSize.width}×${videoSize.height}, ${videoFps} fps.`
+      )
+    } catch (error) {
+      await sink.abort()
+      if (error instanceof DOMException && error.name === "AbortError") {
+        setVideoProgress(null)
+        setStatusMessage("Frame export cancelled.")
+      } else {
+        setErrorMessage(
+          error instanceof Error ? error.message : "Frame export failed."
+        )
+      }
+    } finally {
+      videoExportAbortRef.current = null
+      setIsWorking(false)
+    }
+  }
+
   async function handleLiveVideoRecording() {
     clearFeedback()
 
@@ -1030,28 +1159,28 @@ export function EditorExportDialog({
                 </div>
 
                 <div className="flex gap-1.5 border-b border-[var(--ds-border-divider)] px-4 py-[10px]">
-                  {(["image", "video", "shader", "project"] as const).map(
-                    (tab) => (
-                      <button
-                        className={cn(
-                          "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
-                          activeTab === tab &&
-                            "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
-                        )}
-                        key={tab}
-                        onClick={() => setNextTab(tab)}
-                        type="button"
+                  {(
+                    ["image", "video", "frames", "shader", "project"] as const
+                  ).map((tab) => (
+                    <button
+                      className={cn(
+                        "inline-flex min-h-7 cursor-pointer items-center justify-center rounded-[var(--ds-radius-control)] border border-transparent px-[10px] leading-none transition-[background-color,border-color,color] duration-160 ease-[var(--ease-out-cubic)] hover:bg-[var(--ds-color-surface-subtle)] hover:border-[var(--ds-border-subtle)]",
+                        activeTab === tab &&
+                          "bg-[var(--ds-color-surface-active)] border-[var(--ds-border-active)]"
+                      )}
+                      key={tab}
+                      onClick={() => setNextTab(tab)}
+                      type="button"
+                    >
+                      <Typography
+                        as="span"
+                        tone={activeTab === tab ? "primary" : "tertiary"}
+                        variant="label"
                       >
-                        <Typography
-                          as="span"
-                          tone={activeTab === tab ? "primary" : "tertiary"}
-                          variant="label"
-                        >
-                          {tab}
-                        </Typography>
-                      </button>
-                    )
-                  )}
+                        {tab}
+                      </Typography>
+                    </button>
+                  ))}
                 </div>
 
                 <motion.div
@@ -1083,6 +1212,26 @@ export function EditorExportDialog({
                           onImageHeightChange={updateImageHeight}
                           onImageQualityChange={setImageQuality}
                           onImageWidthChange={updateImageWidth}
+                        />
+                      ) : null}
+                      {activeTab === "frames" ? (
+                        <FramesTabContent
+                          folderSupported={supportsDirectoryPicker()}
+                          frameDestination={frameDestination}
+                          framePrefix={framePrefix}
+                          isWorking={isWorking}
+                          onExport={handleFramesExport}
+                          onFrameDestinationChange={setFrameDestination}
+                          onFramePrefixChange={setFramePrefix}
+                          onVideoDurationChange={setVideoDuration}
+                          onVideoFpsChange={setVideoFps}
+                          onVideoStartChange={setVideoStart}
+                          timelineDuration={timelineDuration}
+                          videoDuration={videoDuration}
+                          videoFps={videoFps}
+                          videoProgress={videoProgress}
+                          videoSize={videoSize}
+                          videoStart={videoStart}
                         />
                       ) : null}
                       {activeTab === "video" ? (
@@ -1171,6 +1320,26 @@ export function EditorExportDialog({
                             onImageWidthChange={updateImageWidth}
                           />
                         ) : null}
+                        {activeTab === "frames" ? (
+                          <FramesTabContent
+                            folderSupported={supportsDirectoryPicker()}
+                            frameDestination={frameDestination}
+                            framePrefix={framePrefix}
+                            isWorking={isWorking}
+                            onExport={handleFramesExport}
+                            onFrameDestinationChange={setFrameDestination}
+                            onFramePrefixChange={setFramePrefix}
+                            onVideoDurationChange={setVideoDuration}
+                            onVideoFpsChange={setVideoFps}
+                            onVideoStartChange={setVideoStart}
+                            timelineDuration={timelineDuration}
+                            videoDuration={videoDuration}
+                            videoFps={videoFps}
+                            videoProgress={videoProgress}
+                            videoSize={videoSize}
+                            videoStart={videoStart}
+                          />
+                        ) : null}
                         {activeTab === "video" ? (
                           <VideoTabContent
                             audioAvailable={audioAvailable}
@@ -1234,11 +1403,13 @@ export function EditorExportDialog({
                   </div>
                 </motion.div>
 
-                {activeTab === "video" && determinismIssues.length > 0 ? (
+                {(activeTab === "video" || activeTab === "frames") &&
+                determinismIssues.length > 0 ? (
                   <Typography
                     aria-label="Determinism warning"
-                    className="mx-4 mb-4 rounded-[var(--ds-radius-control)] border border-[rgb(255_176_64_/_0.24)] bg-[rgb(255_176_64_/_0.1)] px-3 py-[10px] leading-[15px] text-[rgb(255_221_170_/_0.94)]"
+                    className="mx-4 mb-4 rounded-[var(--ds-radius-control)] border border-[rgb(255_176_64_/_0.45)] bg-[rgb(255_176_64_/_0.14)] px-3 py-[10px] leading-[15px]"
                     role="status"
+                    tone="primary"
                     variant="caption"
                   >
                     Not frame-exact:{" "}
@@ -1672,6 +1843,160 @@ function VideoTabContent({
           <DownloadIcon height={16} width={16} />
         )}
         {isWorking ? "Cancel Export" : `Export ${videoFormat.toUpperCase()}`}
+      </Button>
+    </section>
+  )
+}
+
+function FramesTabContent({
+  folderSupported,
+  frameDestination,
+  framePrefix,
+  isWorking,
+  onExport,
+  onFrameDestinationChange,
+  onFramePrefixChange,
+  onVideoDurationChange,
+  onVideoFpsChange,
+  onVideoStartChange,
+  timelineDuration,
+  videoDuration,
+  videoFps,
+  videoProgress,
+  videoSize,
+  videoStart,
+}: {
+  folderSupported: boolean
+  frameDestination: "folder" | "zip"
+  framePrefix: string
+  isWorking: boolean
+  onExport: () => Promise<void>
+  onFrameDestinationChange: (value: "folder" | "zip") => void
+  onFramePrefixChange: (value: string) => void
+  onVideoDurationChange: (value: number) => void
+  onVideoFpsChange: (value: number) => void
+  onVideoStartChange: (value: number) => void
+  timelineDuration: number
+  videoDuration: number
+  videoFps: number
+  videoProgress: { label: string; value: number } | null
+  videoSize: { height: number; width: number }
+  videoStart: number
+}) {
+  const progressValue = Math.max(0, Math.min(videoProgress?.value ?? 0, 1))
+  const frameCount = Math.max(1, Math.round(videoDuration * videoFps))
+
+  return (
+    <section className="flex flex-col gap-[14px]">
+      <Typography className="leading-[15px]" tone="muted" variant="caption">
+        Every frame as a PNG, named{" "}
+        {frameFileName(framePrefix.trim() || "frame", 0)},{" "}
+        {frameFileName(framePrefix.trim() || "frame", 1)} … (frame n is at start
+        + n / fps). Uses the Video tab's aspect, quality and size (
+        {videoSize.width}×{videoSize.height}).
+      </Typography>
+
+      <div className="grid gap-[10px] min-[900px]:grid-cols-2">
+        <FieldLabel label="FPS">
+          <PresetRow>
+            {VIDEO_FPS_PRESETS.map((fps) => (
+              <PillButton
+                active={videoFps === fps}
+                key={fps}
+                label={`${fps}`}
+                onClick={() => onVideoFpsChange(fps)}
+              />
+            ))}
+          </PresetRow>
+        </FieldLabel>
+
+        <FieldLabel label="Duration">
+          <NumberInput
+            formatValue={(value) => value.toString()}
+            min={0.25}
+            onChange={onVideoDurationChange}
+            step={0.25}
+            value={videoDuration}
+          />
+        </FieldLabel>
+      </div>
+
+      <FieldLabel label="Start at">
+        <div className="flex flex-col gap-1.5">
+          <NumberInput
+            formatValue={(value) => value.toString()}
+            min={0}
+            onChange={(value) =>
+              onVideoStartChange(
+                Math.min(
+                  Math.max(0, value),
+                  Math.max(0, timelineDuration - 0.25)
+                )
+              )
+            }
+            step={0.25}
+            value={videoStart}
+          />
+          <Typography className="leading-[14px]" tone="muted" variant="caption">
+            {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)} · ${frameCount} frames`}
+          </Typography>
+        </div>
+      </FieldLabel>
+
+      <div className="grid gap-[10px] min-[900px]:grid-cols-2">
+        <FieldLabel label="File prefix">
+          <input
+            aria-label="Frame file prefix"
+            className="min-h-9 w-full rounded-[var(--ds-radius-control)] border border-[var(--ds-border-divider)] bg-[var(--ds-color-surface-control)] px-[10px] py-2 font-[var(--ds-font-mono)] text-[12px] leading-4 text-[var(--ds-color-text-primary)] outline-none focus:border-[var(--ds-border-hover)]"
+            onChange={(event) => onFramePrefixChange(event.target.value)}
+            spellCheck={false}
+            type="text"
+            value={framePrefix}
+          />
+        </FieldLabel>
+
+        <FieldLabel label="Write to">
+          <PresetRow>
+            <PillButton
+              active={frameDestination === "folder"}
+              disabled={!folderSupported}
+              label="Folder"
+              onClick={() => onFrameDestinationChange("folder")}
+            />
+            <PillButton
+              active={frameDestination === "zip"}
+              label="ZIP"
+              onClick={() => onFrameDestinationChange("zip")}
+            />
+          </PresetRow>
+        </FieldLabel>
+      </div>
+
+      <div className="flex min-h-11 flex-col justify-center gap-2">
+        <div className="h-1.5 overflow-hidden rounded-full bg-white/8">
+          <div
+            className="h-full rounded-full bg-[var(--ds-color-text-primary)] transition-[width] duration-160 ease-[var(--ease-out-cubic)]"
+            style={{ width: `${progressValue * 100}%` }}
+          />
+        </div>
+        <Typography className="leading-[14px]" tone="muted" variant="caption">
+          {videoProgress?.label ?? "\u00A0"}
+        </Typography>
+      </div>
+
+      <Typography className="leading-[14px]" tone="muted" variant="caption">
+        {folderSupported
+          ? "Folder writes each frame straight to disk as it renders. ZIP streams one archive instead."
+          : "This browser cannot write into a folder, so frames go into a ZIP."}
+      </Typography>
+
+      <Button onClick={() => void onExport()} uiSound="action.export">
+        {isWorking ? (
+          <Cross2Icon height={16} width={16} />
+        ) : (
+          <DownloadIcon height={16} width={16} />
+        )}
+        {isWorking ? "Cancel Export" : "Export PNG frames"}
       </Button>
     </section>
   )
