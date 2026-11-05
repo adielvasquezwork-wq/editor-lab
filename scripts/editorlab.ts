@@ -8,6 +8,7 @@
  * <id> is an Editor Lab effect id ("vignette", "splitTone") or any effect
  * layer type ("split-tone", "focus-blur", "grain"...).
  */
+import { isStatefulLayerType } from "@/editorlab/effects/determinism"
 import {
   EDITORLAB_EFFECTS,
   getEffectSchema,
@@ -15,14 +16,6 @@ import {
 import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 import { LAYER_CATALOG } from "@/lib/editor/config/layer-catalog"
 import { EFFECT_LAYER_TYPES, type LayerType } from "@/types/editor"
-
-/** Upstream effects whose output depends on previous frames. */
-const STATEFUL_UPSTREAM = new Set([
-  "blob-tracking",
-  "crt",
-  "pixel-trail",
-  "smear",
-])
 
 function describe(idOrType: string) {
   const effect = getEffectSchema(idOrType)
@@ -40,7 +33,7 @@ function describe(idOrType: string) {
       layerType: idOrType,
       params: definition.params,
       source: "upstream",
-      stateful: STATEFUL_UPSTREAM.has(idOrType),
+      stateful: isStatefulLayerType(idOrType),
     }
   }
 
@@ -67,7 +60,7 @@ function list() {
         label: getLayerDefinition(type).defaultName,
         layerType: type,
         source: "upstream",
-        stateful: STATEFUL_UPSTREAM.has(type),
+        stateful: isStatefulLayerType(type),
       })
     ),
   ]

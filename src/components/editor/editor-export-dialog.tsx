@@ -1,5 +1,9 @@
 "use client"
 
+import {
+  describeDeterminismIssues,
+  findDeterminismIssues,
+} from "@/editorlab/effects/determinism"
 import { DEFAULT_AUDIO_DUCKING } from "@/lib/editor/audio-clips"
 import { planAudioMix } from "@/lib/editor/audio/mix-plan"
 import { getDocumentSize } from "@/lib/editor/composition"
@@ -231,6 +235,10 @@ export function EditorExportDialog({
   )
   const assets = useAssetStore((state) => state.assets)
   const layers = useLayerStore((state) => state.layers)
+  const determinismIssues = useMemo(
+    () => findDeterminismIssues(layers),
+    [layers]
+  )
   const timelineDuration = useTimelineStore((state) => state.duration)
   const timelineLoop = useTimelineStore((state) => state.loop)
   const timelineTracks = useTimelineStore((state) => state.tracks)
@@ -1226,6 +1234,20 @@ export function EditorExportDialog({
                   </div>
                 </motion.div>
 
+                {activeTab === "video" && determinismIssues.length > 0 ? (
+                  <Typography
+                    aria-label="Determinism warning"
+                    className="mx-4 mb-4 rounded-[var(--ds-radius-control)] border border-[rgb(255_176_64_/_0.24)] bg-[rgb(255_176_64_/_0.1)] px-3 py-[10px] leading-[15px] text-[rgb(255_221_170_/_0.94)]"
+                    role="status"
+                    variant="caption"
+                  >
+                    Not frame-exact:{" "}
+                    {describeDeterminismIssues(determinismIssues)}. These layers
+                    change between runs, so a HyperFrames render or a re-export
+                    won't match. Hide them or swap them for a deterministic
+                    effect.
+                  </Typography>
+                ) : null}
                 {errorMessage ? (
                   <Typography
                     className="mx-4 mb-4 rounded-[var(--ds-radius-control)] border border-[rgb(255_74_74_/_0.18)] bg-[rgb(255_74_74_/_0.08)] px-3 py-[10px] leading-[14px] text-[rgb(255_191_191_/_0.92)]"
@@ -1587,17 +1609,16 @@ function VideoTabContent({
             min={0}
             onChange={(value) =>
               onVideoStartChange(
-                Math.min(Math.max(0, value), Math.max(0, timelineDuration - 0.25))
+                Math.min(
+                  Math.max(0, value),
+                  Math.max(0, timelineDuration - 0.25)
+                )
               )
             }
             step={0.25}
             value={videoStart}
           />
-          <Typography
-            className="leading-[14px]"
-            tone="muted"
-            variant="caption"
-          >
+          <Typography className="leading-[14px]" tone="muted" variant="caption">
             {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)}`}
           </Typography>
         </div>
@@ -1618,7 +1639,6 @@ function VideoTabContent({
                 onClick={() => onIncludeAudioChange(false)}
               />
             </PresetRow>
-
           </div>
         </FieldLabel>
       ) : null}
