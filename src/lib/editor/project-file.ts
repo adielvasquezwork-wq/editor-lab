@@ -7,7 +7,10 @@ import {
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
 import { migrateSceneFilmToLayers } from "@/editorlab/effects/migrate-scene-film"
-import { normalizeFrameRate } from "@/editorlab/timing/frame-rate"
+import {
+  DEFAULT_FRAME_RATE,
+  normalizeFrameRate,
+} from "@/editorlab/timing/frame-rate"
 import {
   normalizeFreeze,
   normalizeTimeStep,
@@ -237,7 +240,10 @@ export function buildLabProjectFile(): LabProjectFile {
     selectedLayerId: layerState.selectedLayerId,
     timeline: structuredClone({
       duration: timelineState.duration,
-      frameRate: timelineState.frameRate,
+      // Only non-defaults are written, so older files round-trip unchanged.
+      ...(timelineState.frameRate !== DEFAULT_FRAME_RATE
+        ? { frameRate: timelineState.frameRate }
+        : {}),
       loop: timelineState.loop,
       ...(timelineState.markers.length > 0
         ? { markers: timelineState.markers }
