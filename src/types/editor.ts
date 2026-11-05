@@ -474,9 +474,18 @@ export interface TimelineTrack {
   layerId: string
 }
 
+/** A named point on the timeline (a cut, a beat, a note). */
+export interface TimelineMarker {
+  id: string
+  label: string
+  time: number
+}
+
 export interface TimelineStateSnapshot {
   currentTime: number
   duration: number
+  /** Project frame rate; optional so older snapshots still type-check. */
+  frameRate?: number
   isPlaying: boolean
   loop: boolean
   selectedKeyframeId: string | null
@@ -749,6 +758,8 @@ export interface ProjectPresetConfig {
   timeline: Pick<TimelineStateSnapshot, "duration" | "loop" | "tracks"> & {
     /** Project frame rate; absent in older files (24). */
     frameRate?: number
+    /** Timeline markers; absent in older files. */
+    markers?: TimelineMarker[]
   }
   version: number
 }

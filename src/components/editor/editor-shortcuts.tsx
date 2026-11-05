@@ -127,6 +127,29 @@ export function EditorShortcuts() {
         return
       }
 
+      // Markers: M adds one at the playhead, Shift+M removes it, [ ] jump.
+      if (event.key === "m" || event.key === "M") {
+        event.preventDefault()
+        const marker = timeline.markers.find(
+          (entry) =>
+            Math.abs(entry.time - timeline.currentTime) <
+            1 / timeline.frameRate / 2
+        )
+        if (event.shiftKey) {
+          if (marker) timeline.removeMarker(marker.id)
+        } else if (!marker) {
+          timeline.addMarker(timeline.currentTime)
+          playUISound("action.addLayer")
+        }
+        return
+      }
+
+      if (event.key === "[" || event.key === "]") {
+        event.preventDefault()
+        timeline.jumpToMarker(event.key === "]" ? 1 : -1)
+        return
+      }
+
       if (event.key === "Home" || event.key === "End") {
         event.preventDefault()
         timeline.setPlaying(false)

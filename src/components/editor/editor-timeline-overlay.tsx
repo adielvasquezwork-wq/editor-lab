@@ -625,6 +625,9 @@ export function EditorTimelineOverlay() {
   const currentTime = useTimelineStore((state) => state.currentTime)
   const frameRate = useTimelineStore((state) => state.frameRate)
   const setFrameRate = useTimelineStore((state) => state.setFrameRate)
+  const markers = useTimelineStore((state) => state.markers)
+  const removeMarker = useTimelineStore((state) => state.removeMarker)
+  const updateMarker = useTimelineStore((state) => state.updateMarker)
   const duration = useTimelineStore((state) => state.duration)
   const isPlaying = useTimelineStore((state) => state.isPlaying)
   const loop = useTimelineStore((state) => state.loop)
@@ -1626,6 +1629,44 @@ export function EditorTimelineOverlay() {
                       >
                         {formatTickLabel(tick, duration)}
                       </Typography>
+                    ))}
+
+                    {markers.map((marker) => (
+                      <button
+                        aria-label={`Marker ${marker.label} at ${formatTimecode(marker.time, frameRate)}`}
+                        className="group absolute top-0 bottom-0 z-[1] w-[14px] -translate-x-1/2 cursor-pointer border-0 bg-transparent p-0"
+                        key={marker.id}
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          if (event.shiftKey) {
+                            removeMarker(marker.id)
+                            return
+                          }
+                          setPlaying(false)
+                          setCurrentTime(marker.time)
+                        }}
+                        onDoubleClick={(event) => {
+                          event.stopPropagation()
+                          const label = window.prompt(
+                            "Marker label",
+                            marker.label
+                          )
+                          if (label !== null) updateMarker(marker.id, { label })
+                        }}
+                        onPointerDown={(event) => event.stopPropagation()}
+                        style={{ left: `${(marker.time / duration) * 100}%` }}
+                        title={`${marker.label} · ${formatTimecode(marker.time, frameRate)} (click: go, double-click: rename, shift-click: remove)`}
+                        type="button"
+                      >
+                        <span
+                          aria-hidden="true"
+                          className="absolute top-0 left-1/2 h-[9px] w-[9px] -translate-x-1/2 rotate-45 rounded-[1px] bg-[rgb(255_176_64)] shadow-[0_0_0_1px_rgb(0_0_0_/_0.35)] transition-transform duration-160 group-hover:scale-125"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="absolute top-[9px] bottom-0 left-1/2 w-px bg-[rgb(255_176_64_/_0.55)]"
+                        />
+                      </button>
                     ))}
                   </div>
 

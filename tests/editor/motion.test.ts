@@ -102,3 +102,20 @@ describe("leak keying", () => {
     expect(useTimelineStore.getState().tracks).toHaveLength(0)
   })
 })
+
+describe("whip keying on Velocity Blur", () => {
+  test("keys Speed and switches the layer to manual", () => {
+    useLayerStore.getState().replaceState([], null)
+    useTimelineStore.getState().setFrameRate(24)
+    const blur = createLayer("velocity-blur")
+    useLayerStore.getState().replaceState([blur], blur.id)
+    useTimelineStore.getState().setCurrentTime(1)
+    expect(keyWhipAtPlayhead(blur.id, { peak: 120, rampFrames: 4 })).toBe(3)
+    expect(useLayerStore.getState().getLayerById(blur.id)?.params.source).toBe(
+      "manual"
+    )
+    const track = useTimelineStore.getState().tracks[0]!
+    expect(track.binding.kind === "param" && track.binding.key).toBe("speed")
+    expect(track.keyframes.map((k) => k.value)).toEqual([0, 120, 0])
+  })
+})

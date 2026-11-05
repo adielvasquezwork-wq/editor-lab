@@ -7,6 +7,7 @@ import { leaveColorSchema } from "./leave-color"
 import { lensDistortionSchema } from "./lens-distortion"
 import { lightLeakSchema } from "./light-leak"
 import { splitToneSchema } from "./split-tone"
+import { velocityBlurSchema } from "./velocity-blur"
 import { vignetteSchema } from "./vignette"
 
 /** Every Editor Lab effect schema (no GPU code; safe for the CLI). */
@@ -17,6 +18,7 @@ export const EDITORLAB_EFFECTS: readonly EffectSchema[] = [
   leaveColorSchema,
   lightLeakSchema,
   lensDistortionSchema,
+  velocityBlurSchema,
 ]
 
 export function getEffectSchema(idOrLayerType: string): EffectSchema | null {

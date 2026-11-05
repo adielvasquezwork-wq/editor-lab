@@ -169,6 +169,31 @@ r.lensPin = await lens({ k1: -0.08 })
 r.lensPinStrong = await lens({ k1: -0.4 })
 r.lensZoom = await lens({ scale: 2 }, "edge")
 r.lensFringe = await lens({ chromatic: 1, k1: 0.4 })
+// Velocity blur on a vertical edge (white left of 0.5, black right).
+const vblur = (params) =>
+  run(
+    "velocity-blur",
+    {
+      angle: 0,
+      gain: 1,
+      maxLength: 160,
+      shutter: 360,
+      source: "manual",
+      speed: 0,
+      ...params,
+    },
+    { edge: 0.5 },
+    { height: 36, width: 64 }
+  )
+const transitionWidth = (res) => {
+  const greys = res.row.filter((px) => px[1] > 8 && px[1] < 247).length
+  return greys
+}
+r.vbStill = await vblur({ speed: 0 })
+r.vbAlong = await vblur({ angle: 0, speed: 16 })
+r.vbAcross = await vblur({ angle: 90, speed: 16 })
+r.vbAuto = await vblur({ source: "keyframes", velocityX: 16, velocityY: 0 })
+r.vbAutoStill = await vblur({ source: "keyframes", velocityX: 0, velocityY: 0 })
 const luma = ([red, green, blue]) =>
   0.2126 * red + 0.7152 * green + 0.0722 * blue
 const checks = [
@@ -294,6 +319,22 @@ const checks = [
   [
     "colour fringe separates red and blue at the edge",
     r.lensFringe.row.some((px) => Math.abs(px[0] - px[2]) > 60),
+  ],
+  [
+    "velocity blur at speed 0 is a passthrough (sharp edge)",
+    transitionWidth(r.vbStill) <= 1,
+  ],
+  [
+    "a 16 px/f horizontal speed at 360° smears the edge over ~16 px",
+    transitionWidth(r.vbAlong) >= 12 && transitionWidth(r.vbAlong) <= 18,
+  ],
+  [
+    "the same speed across the edge (90°) leaves it sharp",
+    transitionWidth(r.vbAcross) <= 1,
+  ],
+  [
+    "keyframe mode uses the injected velocity",
+    transitionWidth(r.vbAuto) >= 12 && transitionWidth(r.vbAutoStill) <= 1,
   ],
 ]
 for (const [label, ok] of checks) {

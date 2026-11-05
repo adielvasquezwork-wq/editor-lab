@@ -24,6 +24,7 @@ import type {
   ParameterType,
   ParameterValue,
   TimelineKeyframe,
+  TimelineMarker,
   TimelineStateSnapshot,
   TimelineTrack,
 } from "@/types/editor"
@@ -37,6 +38,8 @@ import { getLayerDefinition } from "@/lib/editor/config/layer-registry"
 export interface TimelineStoreState extends TimelineStateSnapshot {
   /** Project frame rate (frame stepping, timecode, stepped-timing default). */
   frameRate: number
+  /** Named points (cuts, beats), kept sorted by time. */
+  markers: TimelineMarker[]
   frozen: boolean
   lastRenderedClockTime: number
 }
@@ -99,6 +102,16 @@ export interface TimelineStoreActions {
   setCurrentTime: (time: number) => void
   setDuration: (duration: number) => void
   setFrameRate: (frameRate: number) => void
+  /** Adds a marker (or renames the one within a frame of `time`). Returns its id. */
+  addMarker: (time: number, label?: string) => string
+  removeMarker: (id: string) => void
+  updateMarker: (
+    id: string,
+    patch: Partial<Pick<TimelineMarker, "label" | "time">>
+  ) => void
+  setMarkers: (markers: TimelineMarker[]) => void
+  /** Moves the playhead to the next (+1) or previous (-1) marker and pauses. */
+  jumpToMarker: (direction: 1 | -1) => boolean
   /** Moves the playhead by whole frames at the project frame rate and pauses. */
   stepFrames: (delta: number) => void
   setLoop: (loop: boolean) => void
@@ -139,6 +152,10 @@ function clampTime(time: number, duration: number): number {
   }
 
   return Math.min(Math.max(duration, MIN_DURATION), Math.max(0, time))
+}
+
+function sortMarkers(markers: TimelineMarker[]): TimelineMarker[] {
+  return [...markers].sort((left, right) => left.time - right.time)
 }
 
 function sortKeyframes(keyframes: TimelineKeyframe[]): TimelineKeyframe[] {
@@ -372,6 +389,7 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
   duration: 10,
   frameRate: DEFAULT_FRAME_RATE,
   frozen: false,
+  markers: [],
   isPlaying: true,
   lastRenderedClockTime: 0,
   loop: true,
@@ -443,6 +461,87 @@ export const useTimelineStore = create<TimelineStore>((set, get) => ({
 
   setFrameRate: (frameRate) => {
     set({ frameRate: normalizeFrameRate(frameRate) })
+  },
+
+  addMarker: (time, label) => {
+    const state = get()
+    const target = clampTime(time, state.duration)
+    const existing = state.markers.find(
+      (marker) => Math.abs(marker.time - target) < 1 / state.frameRate / 2
+    )
+    if (existing) {
+      if (label !== undefined) get().updateMarker(existing.id, { label })
+      return existing.id
+    }
+    const marker: TimelineMarker = {
+      id: crypto.randomUUID(),
+      label: label ?? `M${state.markers.length + 1}`,
+      time: target,
+    }
+    set({ markers: sortMarkers([...state.markers, marker]) })
+    return marker.id
+  },
+
+  removeMarker: (id) => {
+    set((state) => ({
+      markers: state.markers.filter((marker) => marker.id !== id),
+    }))
+  },
+
+  updateMarker: (id, patch) => {
+    set((state) => ({
+      markers: sortMarkers(
+        state.markers.map((marker) =>
+          marker.id === id
+            ? {
+                ...marker,
+                ...(patch.label !== undefined ? { label: patch.label } : {}),
+                ...(patch.time !== undefined
+                  ? { time: clampTime(patch.time, state.duration) }
+                  : {}),
+              }
+            : marker
+        )
+      ),
+    }))
+  },
+
+  setMarkers: (markers) => {
+    set((state) => ({
+      markers: sortMarkers(
+        markers
+          .filter(
+            (marker) =>
+              typeof marker.id === "string" &&
+              typeof marker.label === "string" &&
+              Number.isFinite(marker.time)
+          )
+          .map((marker) => ({
+            id: marker.id,
+            label: marker.label,
+            time: clampTime(marker.time, state.duration),
+          }))
+      ),
+    }))
+  },
+
+  jumpToMarker: (direction) => {
+    const state = get()
+    const epsilon = 1 / state.frameRate / 2
+    const target =
+      direction > 0
+        ? state.markers.find(
+            (marker) => marker.time > state.currentTime + epsilon
+          )
+        : [...state.markers]
+            .reverse()
+            .find((marker) => marker.time < state.currentTime - epsilon)
+    if (!target) return false
+    set({
+      currentTime: clampTime(target.time, state.duration),
+      isPlaying: false,
+    })
+    return true
   },
 
   stepFrames: (delta) => {

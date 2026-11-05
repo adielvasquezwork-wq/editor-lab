@@ -10,6 +10,8 @@ import {
 import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { getClipFadeFactor, isTimeInClip } from "@/lib/editor/clip"
 import { getActiveSubtitleText } from "@/lib/editor/subtitles"
+import { autoVelocity } from "@/editorlab/effects/velocity-blur/auto-velocity"
+import { normalizeFrameRate } from "@/editorlab/timing/frame-rate"
 import {
   applyTimeModifiers,
   collectLayerTimeModifiers,
@@ -159,15 +161,16 @@ export function buildRendererFrame(
     const time = layerTime(layer)
     const modifiers = timeModifiers.get(layer.id)
     const evaluatedParams = evaluation
-      ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
+      ? stripMaskParams({
+          ...getCachedClone(layer.params),
+          ...evaluation.params,
+        })
       : getCachedClone(layer.params)
     const subtitleText =
       layer.type === "text" && layer.subtitles
         ? getActiveSubtitleText(layer.subtitles, time)
         : null
-    const timedOut =
-      !isTimeInClip(layer.clip, time) ||
-      subtitleText === ""
+    const timedOut = !isTimeInClip(layer.clip, time) || subtitleText === ""
 
     if (
       timedOut &&
@@ -178,10 +181,22 @@ export function buildRendererFrame(
     ) {
       timedOutIds.add(layer.id)
     }
-    const params =
+    let params =
       subtitleText === null
         ? evaluatedParams
         : { ...evaluatedParams, text: subtitleText }
+
+    if (layer.type === "velocity-blur" && params.source !== "manual") {
+      const [velocityX, velocityY] = autoVelocity(
+        layer,
+        input.layers,
+        input.timeline.tracks,
+        time,
+        normalizeFrameRate(input.timeline.frameRate),
+        input.logicalSize ?? input.viewportSize
+      )
+      params = { ...params, velocityX, velocityY }
+    }
     const mask =
       evaluation && layer.mask
         ? applyMaskOverrides(layer.mask, evaluation.params)
@@ -213,8 +228,7 @@ export function buildRendererFrame(
         opacity:
           (typeof evaluation?.properties.opacity === "number"
             ? evaluation.properties.opacity
-            : layer.opacity) *
-          getClipFadeFactor(layer.clip, time),
+            : layer.opacity) * getClipFadeFactor(layer.clip, time),
         saturation:
           typeof evaluation?.properties.saturation === "number"
             ? evaluation.properties.saturation

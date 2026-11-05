@@ -19,9 +19,19 @@ A browser-based WebGPU editor for documentary-style video, forked from
   perspective (tilt/turn/roll, field of view, rounded corners, stroke), with
   depth output so Focus Blur (Blur From: Depth) blurs along it; every
   parameter is keyframable.
-- **Finishing**: vignette (in stops), letterbox, split tone, `.cube` LUTs with
-  S-Log3 / LogC3 / V-Log input, Ken Burns, house easing default, grain frame
-  rate/hold.
+- **Effects as modules**: Vignette, Split Tone, Exposure, Leave Color, Light
+  Leak, Lens Distortion and Velocity Blur, each with a typed, keyframable
+  schema; `.cube` LUTs with S-Log3 / LogC3 / V-Log input; letterbox; Ken
+  Burns; house easing default; grain frame rate/hold. Snippets save one
+  effect's settings; effect stacks copy/paste/save as plain JSON.
+- **Timing**: project frame rate, frame stepping and timecode, stepped
+  timing (on 2s/3s/4s/8s) and freeze frame per layer or group, timeline
+  markers, one-click whip-blur and light-leak keying.
+- **Deterministic output**: a determinism lint on export, PNG frame
+  sequences (folder or ZIP), and `bun run editorlab render` to apply a stack
+  to a PNG sequence headlessly, byte-identical between runs.
+
+See [docs/EDITORLAB.md](docs/EDITORLAB.md) for the full guide.
 
 Upstream's community gallery, accounts, database and Sentry integrations are
 removed: there is no server-side storage, projects autosave in the browser and
@@ -36,7 +46,9 @@ bun run check               # lint + both typecheckers
 bun test                    # unit tests
 bun run test:export-decode  # WebCodecs decoder vs ffmpeg ground truth (needs ffmpeg)
 bun run test:export-audio   # export audio mix in Chromium
-bun run test:film           # post-process + LUT pass on headless WebGPU
+bun run test:film           # effects, post-process, stepped video and the render CLI on headless WebGPU
+bun run editorlab effects list                  # effect schemas as JSON
+bun run editorlab render --in in --stack s.json --out out   # stage-2 render
 ```
 
 The section below is the upstream runtime package documentation.

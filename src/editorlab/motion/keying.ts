@@ -66,12 +66,20 @@ export function keyWhipAtPlayhead(
   layerId: string,
   options: WhipOptions = {}
 ): number {
-  const peak = Math.min(96, Math.max(0, options.peak ?? 40))
+  const layer = useLayerStore.getState().getLayerById(layerId)
+  if (!layer) return 0
+  // Directional Blur keys Strength; Velocity Blur keys Speed (manual mode).
+  const paramKey = layer.type === "velocity-blur" ? "speed" : "strength"
+  if (layer.type === "velocity-blur" && layer.params.source !== "manual") {
+    useLayerStore.getState().updateLayerParam(layerId, "source", "manual")
+  }
+  const peakLimit = layer.type === "velocity-blur" ? 400 : 96
+  const peak = Math.min(peakLimit, Math.max(0, options.peak ?? 40))
   const ramp = Math.max(1, Math.round(options.rampFrames ?? 6))
   const timeline = useTimelineStore.getState()
   const cut = timeToFrame(timeline.currentTime, timeline.frameRate)
   const peakFrame = Math.max(0, cut - 1)
-  return writeKeys(layerId, "strength", [
+  return writeKeys(layerId, paramKey, [
     { easing: HOUSE_EASING, frame: Math.max(0, peakFrame - ramp), value: 0 },
     { easing: HOUSE_EASING, frame: peakFrame, value: peak },
     { easing: HOUSE_EASING, frame: peakFrame + ramp, value: 0 },

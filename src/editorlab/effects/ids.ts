@@ -11,6 +11,7 @@ export const EDITORLAB_EFFECT_LAYER_TYPES = [
   "leave-color",
   "light-leak",
   "lens-distortion",
+  "velocity-blur",
 ] as const
 
 export type EditorLabEffectLayerType =

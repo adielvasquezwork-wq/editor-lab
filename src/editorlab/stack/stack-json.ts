@@ -287,7 +287,7 @@ export function stackToLayers(stack: EffectStack): {
       const paramDefinition = getParameterDefinition(definition.params, key)
       if (
         binding.kind === "param" &&
-        (!(paramDefinition && isParameterAnimatable(paramDefinition)))
+        !(paramDefinition && isParameterAnimatable(paramDefinition))
       ) {
         continue
       }

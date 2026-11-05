@@ -9,6 +9,10 @@ import {
   pasteStackFromClipboard,
   type StackActionResult,
 } from "@/editorlab/stack/stack-clipboard"
+import {
+  downloadSnippetsFile,
+  openSnippetsFile,
+} from "@/editorlab/stack/snippets-file"
 import { startProject } from "@/lib/editor/project-start"
 
 function report(result: StackActionResult | Promise<StackActionResult>): void {
@@ -52,6 +56,13 @@ export function ProjectMenu({ mobile = false }: { mobile?: boolean }) {
       </MenuItem>
       <MenuItem onClick={() => report(openStackFile("replace"))}>
         Open effect stack…
+      </MenuItem>
+      <MenuSeparator />
+      <MenuItem onClick={() => report(downloadSnippetsFile())}>
+        Export snippets…
+      </MenuItem>
+      <MenuItem onClick={() => report(openSnippetsFile())}>
+        Import snippets…
       </MenuItem>
     </Menu>
   )

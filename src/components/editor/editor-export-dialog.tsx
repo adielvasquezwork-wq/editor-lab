@@ -11,6 +11,7 @@ import {
   type FrameSink,
   frameFileName,
 } from "@/editorlab/export/frame-sink"
+import { rangeFromMarkers } from "@/editorlab/timing/marker-range"
 import { DEFAULT_AUDIO_DUCKING } from "@/lib/editor/audio-clips"
 import { planAudioMix } from "@/lib/editor/audio/mix-plan"
 import { getDocumentSize } from "@/lib/editor/composition"
@@ -283,6 +284,22 @@ export function EditorExportDialog({
     [layers]
   )
   const timelineDuration = useTimelineStore((state) => state.duration)
+  const timelineMarkers = useTimelineStore((state) => state.markers)
+  const timelinePlayhead = useTimelineStore((state) => state.currentTime)
+  // Computed outside the selector: a selector returning a new object each
+  // call would re-render forever.
+  const markerRange = useMemo(
+    () => rangeFromMarkers(timelineMarkers, timelinePlayhead, timelineDuration),
+    [timelineMarkers, timelinePlayhead, timelineDuration]
+  )
+  const applyMarkerRange = useCallback(() => {
+    if (!markerRange) return
+    setVideoStart(markerRange.start)
+    setVideoDuration(roundDurationForExport(markerRange.duration))
+  }, [markerRange])
+  const markerRangeLabel = markerRange
+    ? `${formatRangeSeconds(markerRange.start)} \u2013 ${formatRangeSeconds(markerRange.start + markerRange.duration)}`
+    : null
   const timelineLoop = useTimelineStore((state) => state.loop)
   const timelineTracks = useTimelineStore((state) => state.tracks)
   const audioSourceRef = useAudioStore((state) => state.source)
@@ -1232,6 +1249,8 @@ export function EditorExportDialog({
                           videoProgress={videoProgress}
                           videoSize={videoSize}
                           videoStart={videoStart}
+                          markerRangeLabel={markerRangeLabel}
+                          onUseMarkers={applyMarkerRange}
                         />
                       ) : null}
                       {activeTab === "video" ? (
@@ -1267,6 +1286,8 @@ export function EditorExportDialog({
                           videoSize={videoSize}
                           videoStart={videoStart}
                           timelineDuration={timelineDuration}
+                          markerRangeLabel={markerRangeLabel}
+                          onUseMarkers={applyMarkerRange}
                           webmSupported={videoSupport.webm}
                         />
                       ) : null}
@@ -1338,6 +1359,8 @@ export function EditorExportDialog({
                             videoProgress={videoProgress}
                             videoSize={videoSize}
                             videoStart={videoStart}
+                            markerRangeLabel={markerRangeLabel}
+                            onUseMarkers={applyMarkerRange}
                           />
                         ) : null}
                         {activeTab === "video" ? (
@@ -1373,6 +1396,8 @@ export function EditorExportDialog({
                             videoSize={videoSize}
                             videoStart={videoStart}
                             timelineDuration={timelineDuration}
+                            markerRangeLabel={markerRangeLabel}
+                            onUseMarkers={applyMarkerRange}
                             webmSupported={videoSupport.webm}
                           />
                         ) : null}
@@ -1627,9 +1652,13 @@ function VideoTabContent({
   videoSize,
   videoStart,
   timelineDuration,
+  markerRangeLabel,
+  onUseMarkers,
   webmSupported,
 }: {
   audioAvailable: boolean
+  markerRangeLabel: string | null
+  onUseMarkers: () => void
   needsLiveCapture: boolean
   includeAudio: boolean
   isWorking: boolean
@@ -1792,6 +1821,13 @@ function VideoTabContent({
           <Typography className="leading-[14px]" tone="muted" variant="caption">
             {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)}`}
           </Typography>
+          {markerRangeLabel ? (
+            <PillButton
+              active={false}
+              label={`From markers (${markerRangeLabel})`}
+              onClick={onUseMarkers}
+            />
+          ) : null}
         </div>
       </FieldLabel>
 
@@ -1865,8 +1901,12 @@ function FramesTabContent({
   videoProgress,
   videoSize,
   videoStart,
+  markerRangeLabel,
+  onUseMarkers,
 }: {
   folderSupported: boolean
+  markerRangeLabel: string | null
+  onUseMarkers: () => void
   frameDestination: "folder" | "zip"
   framePrefix: string
   isWorking: boolean
@@ -1940,6 +1980,13 @@ function FramesTabContent({
           <Typography className="leading-[14px]" tone="muted" variant="caption">
             {`${formatRangeSeconds(videoStart)} \u2013 ${formatRangeSeconds(videoStart + videoDuration)} · ${frameCount} frames`}
           </Typography>
+          {markerRangeLabel ? (
+            <PillButton
+              active={false}
+              label={`From markers (${markerRangeLabel})`}
+              onClick={onUseMarkers}
+            />
+          ) : null}
         </div>
       </FieldLabel>
 
@@ -2279,6 +2326,7 @@ function buildRenderProjectState() {
     timeline: {
       currentTime: timelineState.currentTime,
       duration: timelineState.duration,
+      frameRate: timelineState.frameRate,
       isPlaying: timelineState.isPlaying,
       loop: timelineState.loop,
       selectedKeyframeId: timelineState.selectedKeyframeId,

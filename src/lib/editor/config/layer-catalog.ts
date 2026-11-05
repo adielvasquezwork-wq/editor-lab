@@ -368,6 +368,7 @@ export const EFFECT_PICKER_ORDER = [
   "photocopy",
   "flares",
   "focus-blur",
+  "directional-blur",
   "glass",
   "bloom",
   "plotter",

@@ -7,6 +7,7 @@ export interface TimelineTrigger {
   duration: unknown
   frameRate?: unknown
   loop: unknown
+  markers?: unknown
   tracks: unknown
 }
 
@@ -36,7 +37,8 @@ export function timelineChanged(
     a.tracks !== b.tracks ||
     a.duration !== b.duration ||
     a.loop !== b.loop ||
-    a.frameRate !== b.frameRate
+    a.frameRate !== b.frameRate ||
+    a.markers !== b.markers
   )
 }
 

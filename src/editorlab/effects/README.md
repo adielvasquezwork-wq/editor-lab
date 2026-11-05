@@ -28,6 +28,7 @@ the layer type to `ids.ts`, the schema to `registry.ts` and the pass to
 | [Leave Color](leave-color/README.md) | `leave-color` | colour | B1 |
 | [Light Leak](light-leak/README.md) | `light-leak` | light | spec only |
 | [Lens Distortion](lens-distortion/README.md) | `lens-distortion` | lens | spec only |
+| [Velocity Blur](velocity-blur/README.md) | `velocity-blur` | lens | C1, A8 |
 
 Saved projects from before vignette and split tone were layers are
 converted on load (`migrate-scene-film.ts`). Letterbox stays a Scene setting.

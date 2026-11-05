@@ -42,9 +42,14 @@ export function MotionSection({ layerId }: { layerId: string }) {
   const [ramp, setRamp] = useState(6)
   const [leakFrames, setLeakFrames] = useState(16)
 
-  if (type !== "directional-blur" && type !== "light-leak") {
+  if (
+    type !== "directional-blur" &&
+    type !== "velocity-blur" &&
+    type !== "light-leak"
+  ) {
     return null
   }
+  const whipParam = type === "velocity-blur" ? "Speed" : "Strength"
 
   const playhead = formatTimecode(currentTime, frameRate)
 
@@ -56,12 +61,12 @@ export function MotionSection({ layerId }: { layerId: string }) {
       <Typography className="uppercase" tone="secondary" variant="overline">
         Motion
       </Typography>
-      {type === "directional-blur" ? (
+      {type === "directional-blur" || type === "velocity-blur" ? (
         <div className="flex flex-col gap-[10px]">
-          <Row label="Peak strength">
+          <Row label={`Peak ${whipParam.toLowerCase()}`}>
             <NumberInput
-              aria-label="Whip peak strength"
-              max={96}
+              aria-label="Whip peak"
+              max={type === "velocity-blur" ? 400 : 96}
               min={0}
               onChange={(value) => {
                 if (Number.isFinite(value)) setPeak(value)
@@ -93,9 +98,10 @@ export function MotionSection({ layerId }: { layerId: string }) {
             Key whip at {playhead}
           </Button>
           <Typography tone="muted" variant="caption">
-            Writes Strength keyframes 0 → {peak} → 0 with the house easing. The
-            peak lands one frame before the playhead, so put the playhead on the
-            cut.
+            Writes {whipParam} keyframes 0 → {peak} → 0 with the house easing.
+            {type === "velocity-blur" ? " Switches Speed From to Manual." : ""}{" "}
+            The peak lands one frame before the playhead, so put the playhead on
+            the cut.
           </Typography>
         </div>
       ) : (

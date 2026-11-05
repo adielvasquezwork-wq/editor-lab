@@ -18,7 +18,10 @@ import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
 import { modelMaterialDefaults } from "@/lib/editor/config/model-options"
 import { LEGACY_MESH_GRADIENT_PRESETS } from "@/lib/editor/mesh-gradient"
 import { CURRENT_PROJECT_FILE_VERSION } from "./project-version"
-import { isLayerGroup, validateLayerHierarchy } from "@/renderer/layer-hierarchy"
+import {
+  isLayerGroup,
+  validateLayerHierarchy,
+} from "@/renderer/layer-hierarchy"
 import { MISSING_DEPTH_ERROR_PREFIX } from "@/renderer/layer-media-error"
 import { z } from "zod"
 import { useAssetStore } from "@/store/asset-store"
@@ -236,6 +239,9 @@ export function buildLabProjectFile(): LabProjectFile {
       duration: timelineState.duration,
       frameRate: timelineState.frameRate,
       loop: timelineState.loop,
+      ...(timelineState.markers.length > 0
+        ? { markers: timelineState.markers }
+        : {}),
       tracks: timelineState.tracks,
     }),
     version: CURRENT_PROJECT_FILE_VERSION,
@@ -499,6 +505,11 @@ const labProjectFileSchema = z.looseObject({
     duration: z.number(),
     frameRate: z.number().optional(),
     loop: z.boolean(),
+    markers: z
+      .array(
+        z.looseObject({ id: z.string(), label: z.string(), time: z.number() })
+      )
+      .optional(),
     tracks: z.array(timelineTrackSchema),
   }),
   version: z.number().int().positive().max(CURRENT_PROJECT_FILE_VERSION),
@@ -566,9 +577,7 @@ export function parseLabProjectFileValue(parsed: unknown): LabProjectFile {
   validateLayerHierarchy(result.data.layers)
   if (
     result.data.version < 7 &&
-    result.data.layers.some((layer) =>
-      isLayerGroup(layer) || layer.parentId
-    )
+    result.data.layers.some((layer) => isLayerGroup(layer) || layer.parentId)
   ) {
     throw new Error("Groups require project version 7 or later.")
   }
@@ -682,6 +691,7 @@ export function applyLabProjectFile(
   useTimelineStore
     .getState()
     .setFrameRate(normalizeFrameRate(projectFile.timeline.frameRate))
+  useTimelineStore.getState().setMarkers(projectFile.timeline.markers ?? [])
 
   const audioSnapshot = normalizeProjectAudio(projectFile.audio)
   useAudioStore.getState().replaceState(audioSnapshot)
@@ -880,7 +890,8 @@ export function migrateLayerParams(
   }
 
   if (layer.type === "model" && params.materialMetalness === undefined) {
-    params.materialMetalness = modelMaterialDefaults(params.material)?.metalness ?? 1
+    params.materialMetalness =
+      modelMaterialDefaults(params.material)?.metalness ?? 1
   }
 
   for (const parameter of getLayerDefinition(layer.type).params) {
@@ -966,8 +977,7 @@ function hydrateImportedLayer(
       ? `${MISSING_DEPTH_ERROR_PREFIX}: ${depthFileName}${depthErrorDetail}`
       : null
   const missingMotifId = layer.patternAssetIds?.find((id) => !assetIds.has(id))
-  const linkedAssets =
-    layer.depthAssetId !== undefined ? { depthAssetId } : {}
+  const linkedAssets = layer.depthAssetId !== undefined ? { depthAssetId } : {}
 
   if (!(layer.assetId && !assetIds.has(layer.assetId))) {
     const environmentError =

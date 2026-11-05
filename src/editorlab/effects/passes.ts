@@ -8,6 +8,7 @@ import { LeaveColorPass } from "./leave-color/pass"
 import { LensDistortionPass } from "./lens-distortion/pass"
 import { LightLeakPass } from "./light-leak/pass"
 import { SplitTonePass } from "./split-tone/pass"
+import { VelocityBlurPass } from "./velocity-blur/pass"
 import { VignettePass } from "./vignette/pass"
 
 const FACTORIES: Record<EditorLabEffectLayerType, (id: string) => PassNode> = {
@@ -16,6 +17,7 @@ const FACTORIES: Record<EditorLabEffectLayerType, (id: string) => PassNode> = {
   "lens-distortion": (id) => new LensDistortionPass(id),
   "light-leak": (id) => new LightLeakPass(id),
   "split-tone": (id) => new SplitTonePass(id),
+  "velocity-blur": (id) => new VelocityBlurPass(id),
   vignette: (id) => new VignettePass(id),
 }
 
