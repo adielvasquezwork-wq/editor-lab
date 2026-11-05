@@ -1,5 +1,15 @@
 # @basementstudio/shader-lab-mcp
 
+## 0.3.0
+
+### Minor Changes
+
+- cdf07f9: `update_layer` accepts `timeStep` (stepped timing on 2s/3s/4s/8s) and `freeze` (freeze frame) for a layer or group; `get_layer` reports them.
+
+### Patch Changes
+
+- 059ef23: The agent bridge no longer trusts the upstream production origin by default; localhost and `*.vercel.app` stay allowed, and other domains can be added with `SHADER_LAB_ALLOWED_ORIGINS`.
+
 ## 0.2.0
 
 ### Minor Changes
