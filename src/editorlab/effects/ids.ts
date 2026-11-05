@@ -9,6 +9,8 @@ export const EDITORLAB_EFFECT_LAYER_TYPES = [
   "split-tone",
   "exposure",
   "leave-color",
+  "light-leak",
+  "lens-distortion",
 ] as const
 
 export type EditorLabEffectLayerType =

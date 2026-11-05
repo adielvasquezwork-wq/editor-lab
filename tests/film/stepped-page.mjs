@@ -1,4 +1,4 @@
-import { applyTimeSteps } from "@/editorlab/timing/time-step"
+import { applyTimeModifiers } from "@/editorlab/timing/time-step"
 import { openExportVideoFrameSource } from "@/renderer/export-video-decoder"
 
 // Picks video frames the way export does for a stepped layer: the pipeline
@@ -21,7 +21,7 @@ window.run = async ({ url, fps, frames, steps }) => {
     result[key] = []
     for (let i = 0; i < frames; i++) {
       // null = same frame as the previous call (the texture keeps it).
-      const frame = await source.frameAt(applyTimeSteps(i / fps, chain))
+      const frame = await source.frameAt(applyTimeModifiers(i / fps, chain))
       if (frame) {
         context.drawImage(frame, 0, 0, 8, 8)
         frame.close()

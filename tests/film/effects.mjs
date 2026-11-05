@@ -126,6 +126,49 @@ const r = {
   expDown: await run("exposure", { stops: -2 }, [128, 128, 128]),
   expUp: await run("exposure", { stops: 1 }, [64, 64, 64]),
 }
+// Light leak and lens distortion.
+const leak = (params, rgb = [40, 40, 40]) =>
+  run(
+    "light-leak",
+    {
+      blend: "screen",
+      edge: "right",
+      hue: 22,
+      hueSpread: 45,
+      intensity: 1,
+      progress: 0.5,
+      seed: 7,
+      size: 1,
+      ...params,
+    },
+    rgb
+  )
+const lens = (params, rgb = { edge: 0.8 }) =>
+  run(
+    "lens-distortion",
+    { center: [0, 0], chromatic: 0, k1: 0, k2: 0, scale: 1, ...params },
+    rgb,
+    { height: 108, width: 192 }
+  )
+const sum = (px) => px[0] + px[1] + px[2]
+const brightest = (res) => Math.max(...res.row.map(sum))
+const brightestPixel = (res) =>
+  res.row.reduce((a, px) => (sum(a) > sum(px) ? a : px))
+r.leakOff0 = await leak({ progress: 0 })
+r.leakOff1 = await leak({ progress: 1 })
+r.leakMid = await leak({ progress: 0.5 })
+r.leakMidAgain = await leak({ progress: 0.5 })
+r.leakSeed = await leak({ progress: 0.5, seed: 8 })
+r.leakZero = await leak({ intensity: 0, progress: 0.5 })
+r.leakBlue = await leak({ hue: 220, progress: 0.5 })
+r.leakAdd = await leak({ blend: "add", progress: 0.5 }, [200, 200, 200])
+r.leakScreen = await leak({ blend: "screen", progress: 0.5 }, [200, 200, 200])
+r.lensId = await lens({})
+r.lensBarrel = await lens({ k1: 0.4 })
+r.lensPin = await lens({ k1: -0.08 })
+r.lensPinStrong = await lens({ k1: -0.4 })
+r.lensZoom = await lens({ scale: 2 }, "edge")
+r.lensFringe = await lens({ chromatic: 1, k1: 0.4 })
 const luma = ([red, green, blue]) =>
   0.2126 * red + 0.7152 * green + 0.0722 * blue
 const checks = [
@@ -189,6 +232,68 @@ const checks = [
   [
     `exposure +1 stop (~${stops(64, 1)})`,
     near(r.expUp.center, grey(stops(64, 1)), 2),
+  ],
+  [
+    "light leak at progress 0 is an exact passthrough",
+    r.leakOff0.row.every((px) => near(px, grey(40), 0)),
+  ],
+  [
+    "light leak at progress 1 is an exact passthrough",
+    r.leakOff1.row.every((px) => near(px, grey(40), 0)),
+  ],
+  [
+    "light leak at progress 0.5 adds light somewhere on the frame",
+    brightest(r.leakMid) > 3 * 40 + 60,
+  ],
+  [
+    "light leak is deterministic (same seed + progress = same pixels)",
+    r.leakMid.hash === r.leakMidAgain.hash,
+  ],
+  [
+    "a different seed gives a different leak",
+    r.leakMid.hash !== r.leakSeed.hash,
+  ],
+  [
+    "intensity 0 is a passthrough",
+    r.leakZero.row.every((px) => near(px, grey(40), 0)),
+  ],
+  [
+    "hue changes the leak colour (22° warm vs 220° blue)",
+    brightestPixel(r.leakMid)[0] > brightestPixel(r.leakMid)[2] &&
+      brightestPixel(r.leakBlue)[2] > brightestPixel(r.leakBlue)[0],
+  ],
+  [
+    "screen never exceeds white; add is brighter than screen",
+    r.leakScreen.row.every((px) => px.every((v) => v <= 255)) &&
+      brightest(r.leakAdd) >= brightest(r.leakScreen),
+  ],
+  [
+    "lens distortion with k = 0, scale 1 is a passthrough (edge stays at 0.8)",
+    Math.abs(r.lensId.edgeAt - 0.8) < 0.011,
+  ],
+  [
+    "barrel (k1 > 0) pulls the edge toward the centre (0.8 → ~0.71)",
+    r.lensBarrel.edgeAt < 0.8 - 0.05 && r.lensBarrel.edgeAt > 0.6,
+  ],
+  [
+    "pincushion (k1 < 0) pushes the edge outward (0.8 → ~0.84)",
+    r.lensPin.edgeAt > 0.8 + 0.02 && r.lensPin.edgeAt < 0.95,
+  ],
+  [
+    "strong pincushion stretches but never folds (row is white, then black)",
+    (() => {
+      const g = r.lensPinStrong.row.map((px) => px[1] > 128)
+      const firstDark = g.indexOf(false)
+      return firstDark === -1 || g.slice(firstDark).every((white) => !white)
+    })(),
+  ],
+  [
+    "edge scale 2 zooms in (the edge moves to 0.7)",
+    Math.abs(r.lensZoom.edgeAt - 0.7) < 0.011,
+  ],
+  [
+    "colour fringe separates red and blue at the edge",
+    r.lensFringe.row.some((px) => Math.abs(px[0] - px[2]) > 60),
   ],
 ]
 for (const [label, ok] of checks) {

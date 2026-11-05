@@ -63,6 +63,7 @@ export function cloneLayer(layer: EditorLayer): EditorLayer {
       : {}),
     ...(layer.clip ? { clip: { ...layer.clip } } : {}),
     ...(layer.timeStep ? { timeStep: { ...layer.timeStep } } : {}),
+    ...(layer.freeze ? { freeze: { ...layer.freeze } } : {}),
     ...(layer.subtitles
       ? { subtitles: layer.subtitles.map((cue) => ({ ...cue })) }
       : {}),

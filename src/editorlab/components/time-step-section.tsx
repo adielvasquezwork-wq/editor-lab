@@ -11,6 +11,7 @@ import {
   TIME_STEP_FRAME_OPTIONS,
 } from "@/editorlab/timing/time-step"
 import { useLayerStore } from "@/store/layer-store"
+import { useTimelineStore } from "@/store/timeline-store"
 
 const FRAME_OPTIONS = TIME_STEP_FRAME_OPTIONS.map((n) => ({
   label: `On ${n}s`,
@@ -52,8 +53,10 @@ export function TimeStepSection({ layerId }: { layerId: string }) {
     (state) =>
       state.layers.find((entry) => entry.id === layerId)?.kind === "group"
   )
+  const projectFps = useTimelineStore((state) => state.frameRate)
+  const defaults = { ...DEFAULT_TIME_STEP, fps: projectFps }
   const patch = (update: Partial<typeof DEFAULT_TIME_STEP>) =>
-    setLayerTimeStep(layerId, { ...(step ?? DEFAULT_TIME_STEP), ...update })
+    setLayerTimeStep(layerId, { ...(step ?? defaults), ...update })
 
   return (
     <section
@@ -68,7 +71,7 @@ export function TimeStepSection({ layerId }: { layerId: string }) {
           aria-label="Stepped timing"
           checked={step !== null}
           onCheckedChange={(checked) =>
-            setLayerTimeStep(layerId, checked ? DEFAULT_TIME_STEP : null)
+            setLayerTimeStep(layerId, checked ? defaults : null)
           }
         />
       </div>

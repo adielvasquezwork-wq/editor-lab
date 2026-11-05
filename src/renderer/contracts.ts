@@ -11,8 +11,9 @@ import { cloneParameterValues } from "@/lib/editor/parameter-schema"
 import { getClipFadeFactor, isTimeInClip } from "@/lib/editor/clip"
 import { getActiveSubtitleText } from "@/lib/editor/subtitles"
 import {
-  applyTimeSteps,
-  collectLayerTimeSteps,
+  applyTimeModifiers,
+  collectLayerTimeModifiers,
+  type LayerTimeModifier,
 } from "@/editorlab/timing/time-step"
 import { evaluateTimelineForLayers } from "@/lib/editor/timeline/evaluate"
 import { createProjectClock } from "@/renderer/project-clock"
@@ -21,7 +22,6 @@ import type {
   EditorAsset,
   EditorLayer,
   LayerParameterValues,
-  LayerTimeStep,
   SceneConfig,
   Size,
   TimelineStateSnapshot,
@@ -43,8 +43,8 @@ export interface RenderableLayerPass {
   layer: EditorLayer
   params: LayerParameterValues
   patternAssets?: EditorAsset[]
-  /** Stepped-timing chain for this layer (outermost group first). */
-  timeSteps?: LayerTimeStep[]
+  /** Time modifiers (stepped timing, freeze) for this layer, outermost group first. */
+  timeModifiers?: LayerTimeModifier[]
 }
 
 export interface RendererFrame {
@@ -131,9 +131,9 @@ export function buildRendererFrame(
   input: BuildRendererFrameInput
 ): RendererFrame {
   const assetById = new Map(input.assets.map((asset) => [asset.id, asset]))
-  const timeSteps = collectLayerTimeSteps(input.layers)
+  const timeModifiers = collectLayerTimeModifiers(input.layers)
   const layerTime = (layer: EditorLayer) =>
-    applyTimeSteps(input.timeline.currentTime, timeSteps.get(layer.id))
+    applyTimeModifiers(input.timeline.currentTime, timeModifiers.get(layer.id))
   const keyframeStates = evaluateSteppedTimeline(
     input.layers,
     input.timeline.tracks,
@@ -157,7 +157,7 @@ export function buildRendererFrame(
   const layers = input.layers.map((layer) => {
     const evaluation = evaluatedById.get(layer.id)
     const time = layerTime(layer)
-    const steps = timeSteps.get(layer.id)
+    const modifiers = timeModifiers.get(layer.id)
     const evaluatedParams = evaluation
       ? stripMaskParams({ ...getCachedClone(layer.params), ...evaluation.params })
       : getCachedClone(layer.params)
@@ -226,7 +226,7 @@ export function buildRendererFrame(
             : layer.visible),
       },
       params,
-      ...(steps ? { timeSteps: steps } : {}),
+      ...(modifiers ? { timeModifiers: modifiers } : {}),
     }
   })
 

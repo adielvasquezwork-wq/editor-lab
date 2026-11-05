@@ -4,6 +4,8 @@ import type { EffectSchema } from "./contract"
 import { exposureSchema } from "./exposure"
 import type { EditorLabEffectLayerType } from "./ids"
 import { leaveColorSchema } from "./leave-color"
+import { lensDistortionSchema } from "./lens-distortion"
+import { lightLeakSchema } from "./light-leak"
 import { splitToneSchema } from "./split-tone"
 import { vignetteSchema } from "./vignette"
 
@@ -13,6 +15,8 @@ export const EDITORLAB_EFFECTS: readonly EffectSchema[] = [
   splitToneSchema,
   exposureSchema,
   leaveColorSchema,
+  lightLeakSchema,
+  lensDistortionSchema,
 ]
 
 export function getEffectSchema(idOrLayerType: string): EffectSchema | null {

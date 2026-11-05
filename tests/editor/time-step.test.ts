@@ -1,7 +1,9 @@
 import { describe, expect, test } from "bun:test"
 import {
-  applyTimeSteps,
-  collectLayerTimeSteps,
+  applyTimeModifiers,
+  collectLayerTimeModifiers,
+  freezeTime,
+  normalizeFreeze,
   normalizeTimeStep,
   stepTime,
 } from "@/editorlab/timing/time-step"
@@ -58,11 +60,11 @@ describe("stepTime", () => {
 
   test("nested steps apply outermost first", () => {
     const chain = [
-      { fps: 25, n: 2, offset: 0 },
-      { fps: 25, n: 8, offset: 0 },
+      { fps: 25, kind: "step" as const, n: 2, offset: 0 },
+      { fps: 25, kind: "step" as const, n: 8, offset: 0 },
     ]
-    expect(frameOf(applyTimeSteps(13 / 25, chain), 25)).toBe(8)
-    expect(applyTimeSteps(0.5, undefined)).toBe(0.5)
+    expect(frameOf(applyTimeModifiers(13 / 25, chain), 25)).toBe(8)
+    expect(applyTimeModifiers(0.5, undefined)).toBe(0.5)
   })
 })
 
@@ -92,7 +94,41 @@ function child(type: EditorLayer["type"], parentId: string | null) {
   return { ...createLayer(type), parentId }
 }
 
-describe("collectLayerTimeSteps", () => {
+describe("freezeTime", () => {
+  const freeze = { from: 2, length: 1 }
+
+  test("holds the frame at `from` for `length`, then resumes where it paused", () => {
+    expect(freezeTime(1.5, freeze)).toBe(1.5)
+    expect(freezeTime(2, freeze)).toBe(2)
+    expect(freezeTime(2.6, freeze)).toBe(2)
+    expect(freezeTime(2.999, freeze)).toBe(2)
+    expect(freezeTime(3, freeze)).toBe(2)
+    expect(freezeTime(4.5, freeze)).toBe(3.5)
+  })
+
+  test("freeze then step: the held frame sits on the step grid", () => {
+    const chain = [
+      { from: 2, kind: "freeze" as const, length: 1 },
+      { fps: 25, kind: "step" as const, n: 3, offset: 0 },
+    ]
+    for (let i = 50; i < 75; i += 1) {
+      expect(frameOf(applyTimeModifiers(i / 25, chain), 25)).toBe(48)
+    }
+    expect(frameOf(applyTimeModifiers(80 / 25, chain), 25)).toBe(54)
+  })
+
+  test("normalizeFreeze rejects junk and clamps negative starts", () => {
+    expect(normalizeFreeze({ from: -1, length: 2 })).toEqual({
+      from: 0,
+      length: 2,
+    })
+    expect(normalizeFreeze({ from: 1, length: 0 })).toBeNull()
+    expect(normalizeFreeze({ from: "1", length: 1 })).toBeNull()
+    expect(normalizeFreeze(undefined)).toBeNull()
+  })
+})
+
+describe("collectLayerTimeModifiers", () => {
   test("children inherit the group's step; outside layers get none", () => {
     const outer = { ...group("outer"), timeStep: { fps: 25, n: 2, offset: 0 } }
     const inner = {
@@ -101,10 +137,23 @@ describe("collectLayerTimeSteps", () => {
     }
     const leaf = child("text", inner.id)
     const plate = child("image", null)
-    const steps = collectLayerTimeSteps([outer, inner, leaf, plate])
-    expect(steps.get(leaf.id)?.map((step) => step.n)).toEqual([2, 8])
-    expect(steps.get(outer.id)?.map((step) => step.n)).toEqual([2])
+    const steps = collectLayerTimeModifiers([outer, inner, leaf, plate])
+    const n = (m: { kind: string; n?: number }) =>
+      m.kind === "step" ? m.n : -1
+    expect(steps.get(leaf.id)?.map(n)).toEqual([2, 8])
+    expect(steps.get(outer.id)?.map(n)).toEqual([2])
     expect(steps.has(plate.id)).toBe(false)
+  })
+
+  test("a layer's own freeze comes before its own step, after the group's", () => {
+    const parent = { ...group("g"), timeStep: { fps: 24, n: 2, offset: 0 } }
+    const leaf = {
+      ...child("text", parent.id),
+      freeze: { from: 1, length: 0.5 },
+      timeStep: { fps: 24, n: 4, offset: 0 },
+    }
+    const chain = collectLayerTimeModifiers([parent, leaf]).get(leaf.id)
+    expect(chain?.map((m) => m.kind)).toEqual(["step", "freeze", "step"])
   })
 })
 
@@ -187,10 +236,10 @@ describe("stepped group in the renderer frame (B5)", () => {
   test("stepped entries carry their chain for the pipeline", () => {
     const entries = flatten(frameAt(layers, tracks, 0.5).layers)
     expect(
-      entries.find((entry) => entry.layer.id === title.id)?.timeSteps
-    ).toEqual([{ fps: 25, n: 3, offset: 0 }])
+      entries.find((entry) => entry.layer.id === title.id)?.timeModifiers
+    ).toEqual([{ fps: 25, kind: "step", n: 3, offset: 0 }])
     expect(
-      entries.find((entry) => entry.layer.id === plate.id)?.timeSteps
+      entries.find((entry) => entry.layer.id === plate.id)?.timeModifiers
     ).toBeUndefined()
   })
 

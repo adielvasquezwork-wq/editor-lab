@@ -1,6 +1,9 @@
-import { normalizeTimeStep } from "@/editorlab/timing/time-step"
+import {
+  normalizeFreeze,
+  normalizeTimeStep,
+} from "@/editorlab/timing/time-step"
 import { useLayerStore } from "@/store/layer-store"
-import type { LayerTimeStep } from "@/types/editor"
+import type { LayerFreeze, LayerTimeStep } from "@/types/editor"
 
 /** Sets (or clears, with null) a layer's stepped timing. */
 export function setLayerTimeStep(
@@ -20,6 +23,29 @@ export function setLayerTimeStep(
       }
 
       const { timeStep: _removed, ...rest } = layer
+      return rest
+    }),
+  }))
+}
+
+/** Sets (or clears, with null) a layer's freeze frame. */
+export function setLayerFreeze(
+  layerId: string,
+  freeze: LayerFreeze | null
+): void {
+  const next = freeze ? normalizeFreeze(freeze) : null
+
+  useLayerStore.setState((state) => ({
+    layers: state.layers.map((layer) => {
+      if (layer.id !== layerId) {
+        return layer
+      }
+
+      if (next) {
+        return { ...layer, freeze: next }
+      }
+
+      const { freeze: _removed, ...rest } = layer
       return rest
     }),
   }))

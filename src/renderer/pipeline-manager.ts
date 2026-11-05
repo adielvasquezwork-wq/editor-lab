@@ -340,7 +340,7 @@ export class PipelineManager {
       // which source frame is prepared without touching material state.
       pass.clip = group ? null : (node.layer.clip ?? null)
       // Groups pass raw time down; each child applies its full chain.
-      pass.timeSteps = group ? [] : (node.timeSteps ?? [])
+      pass.timeModifiers = group ? [] : (node.timeModifiers ?? [])
 
       if (this.layerSignatures.get(layerId) !== signature) {
         const versionBefore = pass.getMaterialVersion()

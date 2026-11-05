@@ -111,6 +111,30 @@ export function EditorShortcuts() {
       return
     }
 
+    // Frame stepping: ← → (or , .) one frame, with Shift ten; Home / End.
+    if (!(event.altKey || event.ctrlKey || event.metaKey)) {
+      const isArrow = event.key === "ArrowLeft" || event.key === "ArrowRight"
+      const isComma = event.key === "," || event.key === "."
+      const timeline = useTimelineStore.getState()
+      // With the timeline open and a track selected, arrows walk keyframes.
+      const keyframeNavigation =
+        isArrow && timelinePanelOpen && timeline.selectedTrackId !== null
+
+      if ((isArrow || isComma) && !keyframeNavigation) {
+        event.preventDefault()
+        const forward = event.key === "ArrowRight" || event.key === "."
+        timeline.stepFrames((forward ? 1 : -1) * (event.shiftKey ? 10 : 1))
+        return
+      }
+
+      if (event.key === "Home" || event.key === "End") {
+        event.preventDefault()
+        timeline.setPlaying(false)
+        timeline.setCurrentTime(event.key === "Home" ? 0 : timeline.duration)
+        return
+      }
+    }
+
     // Blade: cut the selected layers at the playhead.
     if (
       event.key.toLowerCase() === "b" &&

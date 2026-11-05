@@ -5,12 +5,16 @@ import {
   type EditorLabEffectLayerType,
 } from "./ids"
 import { LeaveColorPass } from "./leave-color/pass"
+import { LensDistortionPass } from "./lens-distortion/pass"
+import { LightLeakPass } from "./light-leak/pass"
 import { SplitTonePass } from "./split-tone/pass"
 import { VignettePass } from "./vignette/pass"
 
 const FACTORIES: Record<EditorLabEffectLayerType, (id: string) => PassNode> = {
   exposure: (id) => new ExposurePass(id),
   "leave-color": (id) => new LeaveColorPass(id),
+  "lens-distortion": (id) => new LensDistortionPass(id),
+  "light-leak": (id) => new LightLeakPass(id),
   "split-tone": (id) => new SplitTonePass(id),
   vignette: (id) => new VignettePass(id),
 }

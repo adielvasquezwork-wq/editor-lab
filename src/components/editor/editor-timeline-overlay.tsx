@@ -35,6 +35,12 @@ import { FloatingDesktopPanel } from "@/components/editor/floating-desktop-panel
 import { GlassPanel } from "@/components/ui/glass-panel"
 import { IconButton } from "@/components/ui/icon-button"
 import { NumberInput } from "@/components/ui/number-input"
+import { Select } from "@/components/ui/select"
+import {
+  FRAME_RATE_OPTIONS,
+  formatTimecode,
+  timeToFrame,
+} from "@/editorlab/timing/frame-rate"
 import { Typography } from "@/components/ui/typography"
 import { useAudioMonitor } from "@/hooks/use-audio-monitor"
 import { useTimelineAudioPlayback } from "@/hooks/use-timeline-audio-playback"
@@ -49,7 +55,13 @@ import {
   MAX_DURATION,
   MIN_DURATION,
 } from "@/lib/editor/timeline-duration"
-import { useAudioStore, useEditorStore, useLayerStore, useSoundStore, useTimelineStore } from "@/store"
+import {
+  useAudioStore,
+  useEditorStore,
+  useLayerStore,
+  useSoundStore,
+  useTimelineStore,
+} from "@/store"
 import { useAssetStore } from "@/store/asset-store"
 import { isParamVisible } from "./properties-sidebar-utils"
 import {
@@ -116,9 +128,9 @@ const GENERAL_TIMELINE_PROPERTIES = [
 ] as const
 
 const COLLAPSED_SHELL_HEIGHT = 46
-const COLLAPSED_SHELL_WIDTH = 660
+const COLLAPSED_SHELL_WIDTH = 760
 const EXPANDED_SHELL_HEIGHT = 440
-const EXPANDED_SHELL_WIDTH = 820
+const EXPANDED_SHELL_WIDTH = 900
 const SMALL_NUDGE_TIME = 1 / 60
 const LARGE_NUDGE_TIME = 10 / 60
 
@@ -150,6 +162,11 @@ function rectsIntersect(left: ClientSelectionRect, right: DOMRect): boolean {
     left.top > right.bottom
   )
 }
+
+const FRAME_RATE_SELECT_OPTIONS = FRAME_RATE_OPTIONS.map((fps) => ({
+  label: `${fps} fps`,
+  value: String(fps),
+}))
 
 function formatSeconds(value: number, scaleSeconds = value): string {
   const safeValue = Number.isFinite(value) ? Math.max(0, value) : 0
@@ -356,10 +373,12 @@ function TimelineTransport({
   currentTime,
   duration,
   expanded,
+  frameRate,
   isPlaying,
   loop,
   monitorEnabled,
   onDurationChange,
+  onFrameRateChange,
   onStop,
   onToggleAutoKey,
   onToggleExpanded,
@@ -370,6 +389,8 @@ function TimelineTransport({
   autoKey: boolean
   currentTime: number
   duration: number
+  frameRate: number
+  onFrameRateChange: (frameRate: number) => void
   expanded: boolean
   isPlaying: boolean
   loop: boolean
@@ -495,16 +516,36 @@ function TimelineTransport({
         >
           sec
         </Typography>
+        <Select
+          onValueChange={(value) => {
+            const next = Number.parseFloat(String(value))
+            if (Number.isFinite(next)) onFrameRateChange(next)
+          }}
+          options={FRAME_RATE_SELECT_OPTIONS}
+          triggerAriaLabel="Project frame rate"
+          triggerClassName="min-h-7 gap-1 px-2 py-0"
+          triggerTooltip="Frame rate for frame stepping (← →), timecode and stepped timing"
+          value={String(frameRate)}
+        />
       </div>
 
       <div className="inline-flex min-w-0 flex-1 items-center justify-end gap-2">
         <Typography
           as="span"
-          className="min-w-[136px] shrink-0 whitespace-nowrap text-right text-[12px]"
+          className="shrink-0 whitespace-nowrap text-right text-[12px]"
           tone="secondary"
           variant="monoMd"
         >
           {formatSeconds(currentTime, duration)} / {formatSeconds(duration)}
+        </Typography>
+        <Typography
+          as="span"
+          className="shrink-0 whitespace-nowrap text-[11px]"
+          title={`Frame ${timeToFrame(currentTime, frameRate)} at ${frameRate} fps (← → step frames)`}
+          tone="muted"
+          variant="monoMd"
+        >
+          {formatTimecode(currentTime, frameRate)}
         </Typography>
         <IconButton
           aria-label={
@@ -582,6 +623,8 @@ export function EditorTimelineOverlay() {
   )
 
   const currentTime = useTimelineStore((state) => state.currentTime)
+  const frameRate = useTimelineStore((state) => state.frameRate)
+  const setFrameRate = useTimelineStore((state) => state.setFrameRate)
   const duration = useTimelineStore((state) => state.duration)
   const isPlaying = useTimelineStore((state) => state.isPlaying)
   const loop = useTimelineStore((state) => state.loop)
@@ -655,10 +698,7 @@ export function EditorTimelineOverlay() {
   const keyframeButtonRefs = useRef(new Map<string, HTMLButtonElement>())
   const [dragState, setDragState] = useState<DragState | null>(null)
   const [viewportSize, setViewportSize] = useState({ height: 900, width: 1440 })
-  const tickPositions = useMemo(
-    () => createTickPositions(duration),
-    [duration]
-  )
+  const tickPositions = useMemo(() => createTickPositions(duration), [duration])
   const selectedKeyframeIdSet = useMemo(
     () => new Set(selectedKeyframeIds),
     [selectedKeyframeIds]
@@ -802,77 +842,88 @@ export function EditorTimelineOverlay() {
     }
   )
 
-  const getIntersectedKeyframeIds = useEffectEvent((selectionRect: ClientSelectionRect) => {
-    const intersectedKeyframeIds = new Set<string>()
+  const getIntersectedKeyframeIds = useEffectEvent(
+    (selectionRect: ClientSelectionRect) => {
+      const intersectedKeyframeIds = new Set<string>()
 
-    for (const keyframeId of orderedKeyframeIds) {
-      const keyframeButton = keyframeButtonRefs.current.get(keyframeId)
+      for (const keyframeId of orderedKeyframeIds) {
+        const keyframeButton = keyframeButtonRefs.current.get(keyframeId)
 
-      if (!keyframeButton) {
-        continue
-      }
+        if (!keyframeButton) {
+          continue
+        }
 
-      if (rectsIntersect(selectionRect, keyframeButton.getBoundingClientRect())) {
-        intersectedKeyframeIds.add(keyframeId)
-      }
-    }
-
-    return orderedKeyframeIds.filter((keyframeId) => intersectedKeyframeIds.has(keyframeId))
-  })
-
-  const applyMarqueeSelection = useEffectEvent((nextDragState: Extract<DragState, { type: "marquee" }>) => {
-    const hitKeyframeIds = getIntersectedKeyframeIds(
-      createClientSelectionRect(
-        nextDragState.originClientX,
-        nextDragState.originClientY,
-        nextDragState.currentClientX,
-        nextDragState.currentClientY
-      )
-    )
-    let nextSelectedKeyframeIds: string[] = []
-
-    if (nextDragState.mode === "replace") {
-      nextSelectedKeyframeIds = hitKeyframeIds
-    } else if (nextDragState.mode === "add") {
-      nextSelectedKeyframeIds = [
-        ...nextDragState.initialSelectedKeyframeIds,
-        ...hitKeyframeIds.filter(
-          (keyframeId) =>
-            !nextDragState.initialSelectedKeyframeIds.includes(keyframeId)
-        ),
-      ]
-    } else {
-      const initialSelectedKeyframeIdSet = new Set(
-        nextDragState.initialSelectedKeyframeIds
-      )
-      const hitKeyframeIdSet = new Set(hitKeyframeIds)
-
-      nextSelectedKeyframeIds = nextDragState.initialSelectedKeyframeIds.filter(
-        (keyframeId) => !hitKeyframeIdSet.has(keyframeId)
-      )
-
-      for (const keyframeId of hitKeyframeIds) {
-        if (!initialSelectedKeyframeIdSet.has(keyframeId)) {
-          nextSelectedKeyframeIds.push(keyframeId)
+        if (
+          rectsIntersect(selectionRect, keyframeButton.getBoundingClientRect())
+        ) {
+          intersectedKeyframeIds.add(keyframeId)
         }
       }
-    }
 
-    const nextPrimaryKeyframeId =
-      nextSelectedKeyframeIds.includes(nextDragState.initialPrimaryKeyframeId ?? "")
+      return orderedKeyframeIds.filter((keyframeId) =>
+        intersectedKeyframeIds.has(keyframeId)
+      )
+    }
+  )
+
+  const applyMarqueeSelection = useEffectEvent(
+    (nextDragState: Extract<DragState, { type: "marquee" }>) => {
+      const hitKeyframeIds = getIntersectedKeyframeIds(
+        createClientSelectionRect(
+          nextDragState.originClientX,
+          nextDragState.originClientY,
+          nextDragState.currentClientX,
+          nextDragState.currentClientY
+        )
+      )
+      let nextSelectedKeyframeIds: string[] = []
+
+      if (nextDragState.mode === "replace") {
+        nextSelectedKeyframeIds = hitKeyframeIds
+      } else if (nextDragState.mode === "add") {
+        nextSelectedKeyframeIds = [
+          ...nextDragState.initialSelectedKeyframeIds,
+          ...hitKeyframeIds.filter(
+            (keyframeId) =>
+              !nextDragState.initialSelectedKeyframeIds.includes(keyframeId)
+          ),
+        ]
+      } else {
+        const initialSelectedKeyframeIdSet = new Set(
+          nextDragState.initialSelectedKeyframeIds
+        )
+        const hitKeyframeIdSet = new Set(hitKeyframeIds)
+
+        nextSelectedKeyframeIds =
+          nextDragState.initialSelectedKeyframeIds.filter(
+            (keyframeId) => !hitKeyframeIdSet.has(keyframeId)
+          )
+
+        for (const keyframeId of hitKeyframeIds) {
+          if (!initialSelectedKeyframeIdSet.has(keyframeId)) {
+            nextSelectedKeyframeIds.push(keyframeId)
+          }
+        }
+      }
+
+      const nextPrimaryKeyframeId = nextSelectedKeyframeIds.includes(
+        nextDragState.initialPrimaryKeyframeId ?? ""
+      )
         ? nextDragState.initialPrimaryKeyframeId
         : (hitKeyframeIds[hitKeyframeIds.length - 1] ??
           nextSelectedKeyframeIds[0] ??
           null)
 
-    setSelectedKeyframes(
-      nextPrimaryKeyframeId
-        ? (keyframeTrackIdMap.get(nextPrimaryKeyframeId) ?? nextDragState.initialTrackId)
-        : nextDragState.initialTrackId,
-      nextSelectedKeyframeIds,
-      nextPrimaryKeyframeId
-    )
-  })
+      setSelectedKeyframes(
+        nextPrimaryKeyframeId
+          ? (keyframeTrackIdMap.get(nextPrimaryKeyframeId) ??
+              nextDragState.initialTrackId)
+          : nextDragState.initialTrackId,
+        nextSelectedKeyframeIds,
+        nextPrimaryKeyframeId
+      )
+    }
+  )
 
   const getAdjacentTrackSelection = useEffectEvent((direction: -1 | 1) => {
     if (animatedTrackEntries.length === 0) {
@@ -881,7 +932,8 @@ export function EditorTimelineOverlay() {
 
     const focusedTrackId =
       selectedTrackId ??
-      animatedTrackEntries.find(({ entry }) => entry.id === focusedPropertyId)?.track.id ??
+      animatedTrackEntries.find(({ entry }) => entry.id === focusedPropertyId)
+        ?.track.id ??
       animatedTrackEntries[0]?.track.id ??
       null
 
@@ -904,7 +956,8 @@ export function EditorTimelineOverlay() {
     }
 
     const referenceTime =
-      selectedKeyframeId && keyframeTrackIdMap.get(selectedKeyframeId) === focusedTrackId
+      selectedKeyframeId &&
+      keyframeTrackIdMap.get(selectedKeyframeId) === focusedTrackId
         ? (keyframeById.get(selectedKeyframeId)?.time ?? currentTime)
         : currentTime
 
@@ -921,7 +974,9 @@ export function EditorTimelineOverlay() {
             : closestKeyframe
         },
         null
-      ) ?? nextTrackEntry.track.keyframes[0] ?? null
+      ) ??
+      nextTrackEntry.track.keyframes[0] ??
+      null
 
     if (!nextKeyframe) {
       return null
@@ -934,43 +989,48 @@ export function EditorTimelineOverlay() {
     }
   })
 
-  const getHorizontalNavigationKeyframe = useEffectEvent((direction: -1 | 1) => {
-    const track =
-      animatedTrackEntries.find(({ track: entryTrack }) => entryTrack.id === selectedTrackId)
-        ?.track ?? null
+  const getHorizontalNavigationKeyframe = useEffectEvent(
+    (direction: -1 | 1) => {
+      const track =
+        animatedTrackEntries.find(
+          ({ track: entryTrack }) => entryTrack.id === selectedTrackId
+        )?.track ?? null
 
-    if (!track) {
-      return null
-    }
-
-    if (track.keyframes.length === 0) {
-      return null
-    }
-
-    const selectedKeyframeIndex = selectedKeyframeId
-      ? track.keyframes.findIndex((keyframe) => keyframe.id === selectedKeyframeId)
-      : -1
-
-    if (selectedKeyframeIndex !== -1) {
-      return track.keyframes[selectedKeyframeIndex + direction] ?? null
-    }
-
-    if (direction < 0) {
-      for (let index = track.keyframes.length - 1; index >= 0; index -= 1) {
-        const keyframe = track.keyframes[index]
-
-        if (keyframe && keyframe.time < currentTime) {
-          return keyframe
-        }
+      if (!track) {
+        return null
       }
 
-      return null
-    }
+      if (track.keyframes.length === 0) {
+        return null
+      }
 
-    return (
-      track.keyframes.find((keyframe) => keyframe.time > currentTime) ?? null
-    )
-  })
+      const selectedKeyframeIndex = selectedKeyframeId
+        ? track.keyframes.findIndex(
+            (keyframe) => keyframe.id === selectedKeyframeId
+          )
+        : -1
+
+      if (selectedKeyframeIndex !== -1) {
+        return track.keyframes[selectedKeyframeIndex + direction] ?? null
+      }
+
+      if (direction < 0) {
+        for (let index = track.keyframes.length - 1; index >= 0; index -= 1) {
+          const keyframe = track.keyframes[index]
+
+          if (keyframe && keyframe.time < currentTime) {
+            return keyframe
+          }
+        }
+
+        return null
+      }
+
+      return (
+        track.keyframes.find((keyframe) => keyframe.time > currentTime) ?? null
+      )
+    }
+  )
 
   useEffect(() => {
     if (!timelinePanelOpen) {
@@ -1059,7 +1119,10 @@ export function EditorTimelineOverlay() {
         return
       }
 
-      if (event.altKey && (event.key === "ArrowLeft" || event.key === "ArrowRight")) {
+      if (
+        event.altKey &&
+        (event.key === "ArrowLeft" || event.key === "ArrowRight")
+      ) {
         if (selectedKeyframeIds.length === 0) {
           return
         }
@@ -1213,8 +1276,7 @@ export function EditorTimelineOverlay() {
 
   const selectedTrack =
     layerTracks.find((track) => track.id === selectedTrackId) ?? null
-  const progress =
-    duration > 0 ? clamp(currentTime / duration, 0, 1) : 0
+  const progress = duration > 0 ? clamp(currentTime / duration, 0, 1) : 0
   const shellWidth = timelinePanelOpen
     ? Math.min(EXPANDED_SHELL_WIDTH, Math.max(640, viewportSize.width - 96))
     : Math.min(COLLAPSED_SHELL_WIDTH, Math.max(360, viewportSize.width - 48))
@@ -1353,6 +1415,8 @@ export function EditorTimelineOverlay() {
                 currentTime={currentTime}
                 duration={duration}
                 expanded={timelinePanelOpen}
+                frameRate={frameRate}
+                onFrameRateChange={setFrameRate}
                 isPlaying={isPlaying}
                 loop={loop}
                 monitorEnabled={audioEnabled}
@@ -1422,7 +1486,9 @@ export function EditorTimelineOverlay() {
                               <button
                                 className={cn(
                                   "flex min-h-8 min-w-0 flex-1 cursor-pointer items-center gap-[10px] rounded-[10px] border border-transparent px-[10px] text-left transition-[background-color,border-color,color,transform,opacity] duration-160 ease-[var(--ease-out-cubic)] hover:bg-white/4 hover:border-white/5 active:scale-[0.995]",
-                                  isAnimated && !animationEnabled && "opacity-60",
+                                  isAnimated &&
+                                    !animationEnabled &&
+                                    "opacity-60"
                                 )}
                                 onClick={() => {
                                   setFocusedPropertyId(entry.id)
@@ -1474,15 +1540,29 @@ export function EditorTimelineOverlay() {
                                     event.stopPropagation()
 
                                     if (track) {
-                                      setTrackEnabled(track.id, !animationEnabled)
+                                      setTrackEnabled(
+                                        track.id,
+                                        !animationEnabled
+                                      )
                                     }
 
                                     if (audioLink) {
-                                      setLinkEnabled(audioLink.id, !animationEnabled)
+                                      setLinkEnabled(
+                                        audioLink.id,
+                                        !animationEnabled
+                                      )
                                     }
                                   }}
-                                  tooltip={animationEnabled ? "Disable track" : "Enable track"}
-                                  uiSound={animationEnabled ? "action.visibilityOff" : "action.visibilityOn"}
+                                  tooltip={
+                                    animationEnabled
+                                      ? "Disable track"
+                                      : "Enable track"
+                                  }
+                                  uiSound={
+                                    animationEnabled
+                                      ? "action.visibilityOff"
+                                      : "action.visibilityOn"
+                                  }
                                   variant="ghost"
                                 >
                                   {animationEnabled ? (
@@ -1593,112 +1673,126 @@ export function EditorTimelineOverlay() {
                             />
                             {track
                               ? track.keyframes.map((keyframe) => {
-                              const isSelected = selectedKeyframeIdSet.has(
-                                keyframe.id
-                              )
-                              const isPrimary = selectedKeyframeId === keyframe.id
+                                  const isSelected = selectedKeyframeIdSet.has(
+                                    keyframe.id
+                                  )
+                                  const isPrimary =
+                                    selectedKeyframeId === keyframe.id
 
-                              return (
-                                <button
-                                  aria-label={`Keyframe at ${formatSeconds(keyframe.time)}`}
-                                  className={cn(
-                                    "group absolute top-[11px] inline-flex h-[22px] w-[22px] -translate-x-1/2 cursor-grab items-center justify-center bg-transparent p-0 text-inherit active:cursor-grabbing",
-                                    isSelected && "z-[2]",
-                                    isPrimary && "z-[3]"
-                                  )}
-                                  data-selected={isSelected}
-                                  key={keyframe.id}
-                                  onDoubleClick={(event) => {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                    setFocusedPropertyId(entry.id)
-                                    setSelected(track.id, keyframe.id)
-                                    setCurrentTime(keyframe.time)
-                                  }}
-                                  onPointerDown={(event) => {
-                                    event.preventDefault()
-                                    event.stopPropagation()
-                                    setFocusedPropertyId(entry.id)
-
-                                    if (event.metaKey || event.ctrlKey) {
-                                      toggleSelectedKeyframes(
-                                        track.id,
-                                        [keyframe.id],
-                                        keyframe.id
-                                      )
-                                      return
-                                    }
-
-                                    if (event.shiftKey) {
-                                      const rangeKeyframeIds =
-                                        selectedKeyframeId &&
-                                        keyframeTrackIdMap.get(selectedKeyframeId) === track.id
-                                          ? getTrackKeyframeRangeIds(track, keyframe.id)
-                                          : [keyframe.id]
-
-                                      if (
-                                        selectedKeyframeId &&
-                                        keyframeTrackIdMap.get(selectedKeyframeId) === track.id
-                                      ) {
-                                        setSelectedKeyframes(
-                                          track.id,
-                                          rangeKeyframeIds,
-                                          keyframe.id
-                                        )
-                                      } else {
-                                        addSelectedKeyframes(
-                                          track.id,
-                                          [keyframe.id],
-                                          keyframe.id
-                                        )
-                                      }
-                                      return
-                                    }
-
-                                    setSelected(track.id, keyframe.id)
-                                    setDragState({
-                                      keyframeId: keyframe.id,
-                                      trackId: track.id,
-                                      type: "keyframe",
-                                    })
-                                  }}
-                                  ref={(node) => {
-                                    if (node) {
-                                      keyframeButtonRefs.current.set(keyframe.id, node)
-                                      return
-                                    }
-
-                                    keyframeButtonRefs.current.delete(keyframe.id)
-                                  }}
-                                  style={{
-                                    left: `${(keyframe.time / duration) * 100}%`,
-                                  }}
-                                  type="button"
-                                >
-                                  {isSelected ? (
-                                    <span
-                                      aria-hidden="true"
+                                  return (
+                                    <button
+                                      aria-label={`Keyframe at ${formatSeconds(keyframe.time)}`}
                                       className={cn(
-                                        "absolute rotate-45 border transition-[transform,opacity,box-shadow,background-color,border-radius,height,width] duration-160 ease-[var(--ease-out-cubic)]",
-                                        isPrimary
-                                          ? "h-[18px] w-[18px] rounded-[7px] border-white/55 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.24)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.12),0_0_20px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.48)]"
-                                          : "h-[15px] w-[15px] rounded-[4px] border-white/34 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.13)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.1),0_0_12px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.24)]",
-                                        !(track.enabled || isPrimary) && "opacity-75"
+                                        "group absolute top-[11px] inline-flex h-[22px] w-[22px] -translate-x-1/2 cursor-grab items-center justify-center bg-transparent p-0 text-inherit active:cursor-grabbing",
+                                        isSelected && "z-[2]",
+                                        isPrimary && "z-[3]"
                                       )}
-                                    />
-                                  ) : null}
-                                  <span
-                                    aria-hidden="true"
-                                    className={cn(
-                                      "relative z-10 h-[11px] w-[11px] rounded-[4px] border border-white/40 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.95)] shadow-[0_4px_10px_rgb(0_0_0_/_0.22)] rotate-45 transition-[box-shadow,transform,background-color,border-color,opacity,height,width] duration-160 ease-[var(--ease-out-cubic)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255_/_0.24),0_6px_14px_rgb(0_0_0_/_0.28)]",
-                                      isSelected &&
-                                        "h-[13px] w-[13px] border-white shadow-[0_0_0_1px_rgb(255_255_255_/_0.22),0_8px_18px_rgb(0_0_0_/_0.34)]",
-                                      isPrimary &&
-                                        "h-[12px] w-[12px] border-white bg-white shadow-[0_0_0_2px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.96),0_0_0_4px_rgb(255_255_255_/_0.16),0_0_18px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.46),0_10px_22px_rgb(0_0_0_/_0.38)]",
-                                      !track.enabled && "opacity-60"
-                                    )}
-                                  />
-                                </button>
+                                      data-selected={isSelected}
+                                      key={keyframe.id}
+                                      onDoubleClick={(event) => {
+                                        event.preventDefault()
+                                        event.stopPropagation()
+                                        setFocusedPropertyId(entry.id)
+                                        setSelected(track.id, keyframe.id)
+                                        setCurrentTime(keyframe.time)
+                                      }}
+                                      onPointerDown={(event) => {
+                                        event.preventDefault()
+                                        event.stopPropagation()
+                                        setFocusedPropertyId(entry.id)
+
+                                        if (event.metaKey || event.ctrlKey) {
+                                          toggleSelectedKeyframes(
+                                            track.id,
+                                            [keyframe.id],
+                                            keyframe.id
+                                          )
+                                          return
+                                        }
+
+                                        if (event.shiftKey) {
+                                          const rangeKeyframeIds =
+                                            selectedKeyframeId &&
+                                            keyframeTrackIdMap.get(
+                                              selectedKeyframeId
+                                            ) === track.id
+                                              ? getTrackKeyframeRangeIds(
+                                                  track,
+                                                  keyframe.id
+                                                )
+                                              : [keyframe.id]
+
+                                          if (
+                                            selectedKeyframeId &&
+                                            keyframeTrackIdMap.get(
+                                              selectedKeyframeId
+                                            ) === track.id
+                                          ) {
+                                            setSelectedKeyframes(
+                                              track.id,
+                                              rangeKeyframeIds,
+                                              keyframe.id
+                                            )
+                                          } else {
+                                            addSelectedKeyframes(
+                                              track.id,
+                                              [keyframe.id],
+                                              keyframe.id
+                                            )
+                                          }
+                                          return
+                                        }
+
+                                        setSelected(track.id, keyframe.id)
+                                        setDragState({
+                                          keyframeId: keyframe.id,
+                                          trackId: track.id,
+                                          type: "keyframe",
+                                        })
+                                      }}
+                                      ref={(node) => {
+                                        if (node) {
+                                          keyframeButtonRefs.current.set(
+                                            keyframe.id,
+                                            node
+                                          )
+                                          return
+                                        }
+
+                                        keyframeButtonRefs.current.delete(
+                                          keyframe.id
+                                        )
+                                      }}
+                                      style={{
+                                        left: `${(keyframe.time / duration) * 100}%`,
+                                      }}
+                                      type="button"
+                                    >
+                                      {isSelected ? (
+                                        <span
+                                          aria-hidden="true"
+                                          className={cn(
+                                            "absolute rotate-45 border transition-[transform,opacity,box-shadow,background-color,border-radius,height,width] duration-160 ease-[var(--ease-out-cubic)]",
+                                            isPrimary
+                                              ? "h-[18px] w-[18px] rounded-[7px] border-white/55 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.24)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.12),0_0_20px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.48)]"
+                                              : "h-[15px] w-[15px] rounded-[4px] border-white/34 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.13)] shadow-[0_0_0_1px_rgb(255_255_255_/_0.1),0_0_12px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.24)]",
+                                            !(track.enabled || isPrimary) &&
+                                              "opacity-75"
+                                          )}
+                                        />
+                                      ) : null}
+                                      <span
+                                        aria-hidden="true"
+                                        className={cn(
+                                          "relative z-10 h-[11px] w-[11px] rounded-[4px] border border-white/40 bg-[rgb(var(--timeline-track-rgb,122_162_255)_/_0.95)] shadow-[0_4px_10px_rgb(0_0_0_/_0.22)] rotate-45 transition-[box-shadow,transform,background-color,border-color,opacity,height,width] duration-160 ease-[var(--ease-out-cubic)] group-hover:shadow-[0_0_0_1px_rgb(255_255_255_/_0.24),0_6px_14px_rgb(0_0_0_/_0.28)]",
+                                          isSelected &&
+                                            "h-[13px] w-[13px] border-white shadow-[0_0_0_1px_rgb(255_255_255_/_0.22),0_8px_18px_rgb(0_0_0_/_0.34)]",
+                                          isPrimary &&
+                                            "h-[12px] w-[12px] border-white bg-white shadow-[0_0_0_2px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.96),0_0_0_4px_rgb(255_255_255_/_0.16),0_0_18px_rgb(var(--timeline-track-rgb,122_162_255)_/_0.46),0_10px_22px_rgb(0_0_0_/_0.38)]",
+                                          !track.enabled && "opacity-60"
+                                        )}
+                                      />
+                                    </button>
                                   )
                                 })
                               : null}
@@ -1753,14 +1847,14 @@ export function EditorTimelineOverlay() {
                           event.stopPropagation()
                           setDragState({ type: "playhead" })
                         }}
-	                      />
-	                    </div>
-	                  </div>
-	                    {selectedTrack && selectedKeyframeId ? (
-	                    <CurveEditorOverlayControl
-	                      keyframeId={selectedKeyframeId}
-	                      onEasingChange={setKeyframeEasing}
-	                      track={selectedTrack}
+                      />
+                    </div>
+                  </div>
+                  {selectedTrack && selectedKeyframeId ? (
+                    <CurveEditorOverlayControl
+                      keyframeId={selectedKeyframeId}
+                      onEasingChange={setKeyframeEasing}
+                      track={selectedTrack}
                     />
                   ) : null}
                 </div>

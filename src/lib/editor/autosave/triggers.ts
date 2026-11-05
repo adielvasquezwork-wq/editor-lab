@@ -5,6 +5,7 @@ export interface LayerTrigger {
 
 export interface TimelineTrigger {
   duration: unknown
+  frameRate?: unknown
   loop: unknown
   tracks: unknown
 }
@@ -31,7 +32,12 @@ export function timelineChanged(
   a: TimelineTrigger,
   b: TimelineTrigger
 ): boolean {
-  return a.tracks !== b.tracks || a.duration !== b.duration || a.loop !== b.loop
+  return (
+    a.tracks !== b.tracks ||
+    a.duration !== b.duration ||
+    a.loop !== b.loop ||
+    a.frameRate !== b.frameRate
+  )
 }
 
 export function audioChanged(a: AudioTrigger, b: AudioTrigger): boolean {

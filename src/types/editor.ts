@@ -352,6 +352,12 @@ export interface BaseLayer {
   timeStep?: LayerTimeStep | null
 
   /**
+   * Freeze frame: the layer (or everything in the group) holds the frame at
+   * `from` for `length` seconds, then resumes from where it paused.
+   */
+  freeze?: LayerFreeze | null
+
+  /**
    * Text layers only: timed captions (SRT/VTT). When present the layer shows
    * the cue at the playhead instead of its static text, and hides between
    * cues.
@@ -576,6 +582,13 @@ export interface SceneConfig {
   letterbox?: SceneLetterbox | undefined
 }
 
+export interface LayerFreeze {
+  /** Project time (seconds) of the frame to hold. */
+  from: number
+  /** How long the hold lasts, in seconds. */
+  length: number
+}
+
 export interface LayerTimeStep {
   /** Frames each pose is held for (2 = on twos). */
   n: number
@@ -733,7 +746,10 @@ export interface ProjectPresetConfig {
   exportedAt: string
   layers: EditorLayer[]
   selectedLayerId: string | null
-  timeline: Pick<TimelineStateSnapshot, "duration" | "loop" | "tracks">
+  timeline: Pick<TimelineStateSnapshot, "duration" | "loop" | "tracks"> & {
+    /** Project frame rate; absent in older files (24). */
+    frameRate?: number
+  }
   version: number
 }
 

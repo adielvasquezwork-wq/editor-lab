@@ -64,12 +64,13 @@ const result = await page.evaluate((input) => window.run(input), {
   frames: FRAMES,
   steps: {
     full: [],
-    onThrees: [{ fps: FPS, n: 3, offset: 0 }],
-    onFoursOffset1: [{ fps: FPS, n: 4, offset: 1 }],
+    onThrees: [{ fps: FPS, kind: "step", n: 3, offset: 0 }],
+    onFoursOffset1: [{ fps: FPS, kind: "step", n: 4, offset: 1 }],
     nested8in2: [
-      { fps: FPS, n: 2, offset: 0 },
-      { fps: FPS, n: 8, offset: 0 },
+      { fps: FPS, kind: "step", n: 2, offset: 0 },
+      { fps: FPS, kind: "step", n: 8, offset: 0 },
     ],
+    frozen: [{ from: 6 / FPS, kind: "freeze", length: 5 / FPS }],
   },
   url: `http://127.0.0.1:${server.port}/v.webm`,
 })
@@ -94,6 +95,16 @@ const checks = [
   [
     "nested steps compose (8 inside a group on 2s)",
     same(result.nested8in2, hold(8)),
+  ],
+  [
+    "freeze holds frame 6 for 5 frames, then resumes from 7",
+    same(
+      result.frozen,
+      index.map((i) => {
+        if (i < 6) return i
+        return i < 11 ? 6 : i - 5
+      })
+    ),
   ],
 ]
 for (const [label, ok] of checks) {

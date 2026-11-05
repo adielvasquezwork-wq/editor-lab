@@ -1,4 +1,4 @@
-import type { LayerTimeStep } from "@/types/editor"
+import type { LayerFreeze, LayerTimeStep } from "@/types/editor"
 
 /**
  * Stepped timing ("posterize time"). A layer on n evaluates at
@@ -59,48 +59,103 @@ export function stepTime(time: number, step: LayerTimeStep): number {
   return Math.max(0, held) / step.fps
 }
 
-/** Applies nested steps, outermost group first. */
-export function applyTimeSteps(
+export function normalizeFreeze(value: unknown): LayerFreeze | null {
+  if (typeof value !== "object" || value === null) {
+    return null
+  }
+
+  const { from, length } = value as Record<string, unknown>
+
+  if (
+    typeof from !== "number" ||
+    !Number.isFinite(from) ||
+    typeof length !== "number" ||
+    !Number.isFinite(length) ||
+    length <= 0
+  ) {
+    return null
+  }
+
+  return { from: Math.max(0, from), length }
+}
+
+/**
+ * Freeze frame: time stops at `from` for `length` seconds, then resumes from
+ * where it paused (so a clip plays its full content, `length` later).
+ */
+export function freezeTime(time: number, freeze: LayerFreeze): number {
+  if (!Number.isFinite(time) || freeze.length <= 0) {
+    return time
+  }
+
+  if (time < freeze.from) {
+    return time
+  }
+
+  if (time < freeze.from + freeze.length) {
+    return freeze.from
+  }
+
+  return time - freeze.length
+}
+
+export type LayerTimeModifier =
+  | ({ kind: "step" } & LayerTimeStep)
+  | ({ kind: "freeze" } & LayerFreeze)
+
+export function applyTimeModifier(
   time: number,
-  steps: readonly LayerTimeStep[] | undefined
+  modifier: LayerTimeModifier
 ): number {
-  if (!steps || steps.length === 0) {
+  return modifier.kind === "freeze"
+    ? freezeTime(time, modifier)
+    : stepTime(time, modifier)
+}
+
+/** Applies a chain of modifiers in order (outermost group first). */
+export function applyTimeModifiers(
+  time: number,
+  modifiers: readonly LayerTimeModifier[] | undefined
+): number {
+  if (!modifiers || modifiers.length === 0) {
     return time
   }
 
   let result = time
 
-  for (const step of steps) {
-    result = stepTime(result, step)
+  for (const modifier of modifiers) {
+    result = applyTimeModifier(result, modifier)
   }
 
   return result
 }
 
-interface SteppableLayer {
+interface TimedLayer {
+  freeze?: LayerFreeze | null | undefined
   id: string
   parentId?: string | null | undefined
   timeStep?: LayerTimeStep | null | undefined
 }
 
 /**
- * For each layer, the steps that apply to it: its ancestors' (outermost
- * first) and then its own. Layers with no step anywhere are omitted.
+ * For each layer, the time modifiers that apply to it: its ancestors'
+ * (outermost first), then its own freeze, then its own step. Layers with no
+ * modifier anywhere are omitted.
  */
-export function collectLayerTimeSteps(
-  layers: readonly SteppableLayer[]
-): Map<string, LayerTimeStep[]> {
-  const result = new Map<string, LayerTimeStep[]>()
+export function collectLayerTimeModifiers(
+  layers: readonly TimedLayer[]
+): Map<string, LayerTimeModifier[]> {
+  const result = new Map<string, LayerTimeModifier[]>()
 
-  if (!layers.some((layer) => layer.timeStep)) {
+  if (!layers.some((layer) => layer.timeStep || layer.freeze)) {
     return result
   }
 
   const byId = new Map(layers.map((layer) => [layer.id, layer]))
   const resolving = new Set<string>()
-  const resolved = new Map<string, LayerTimeStep[]>()
+  const resolved = new Map<string, LayerTimeModifier[]>()
 
-  const resolve = (layer: SteppableLayer): LayerTimeStep[] => {
+  const resolve = (layer: TimedLayer): LayerTimeModifier[] => {
     const cached = resolved.get(layer.id)
 
     if (cached) {
@@ -113,19 +168,22 @@ export function collectLayerTimeSteps(
 
     resolving.add(layer.id)
     const parent = layer.parentId ? byId.get(layer.parentId) : undefined
-    const inherited = parent ? resolve(parent) : []
-    const own = normalizeTimeStep(layer.timeStep)
-    const steps = own ? [...inherited, own] : inherited
+    const own: LayerTimeModifier[] = []
+    const freeze = normalizeFreeze(layer.freeze)
+    const step = normalizeTimeStep(layer.timeStep)
+    if (freeze) own.push({ kind: "freeze", ...freeze })
+    if (step) own.push({ kind: "step", ...step })
+    const modifiers = [...(parent ? resolve(parent) : []), ...own]
     resolving.delete(layer.id)
-    resolved.set(layer.id, steps)
-    return steps
+    resolved.set(layer.id, modifiers)
+    return modifiers
   }
 
   for (const layer of layers) {
-    const steps = resolve(layer)
+    const modifiers = resolve(layer)
 
-    if (steps.length > 0) {
-      result.set(layer.id, steps)
+    if (modifiers.length > 0) {
+      result.set(layer.id, modifiers)
     }
   }
 

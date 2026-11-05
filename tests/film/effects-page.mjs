@@ -14,10 +14,17 @@ window.run = async ({ type, params, rgb, width = 64, height = 36 }) => {
   await renderer.init()
   const data = new Float32Array(width * height * 4)
   for (let i = 0; i < width * height; i++) {
-    data.set(
-      [dec(rgb[0] / 255), dec(rgb[1] / 255), dec(rgb[2] / 255), 1],
-      i * 4
-    )
+    const edge = rgb === "edge" ? 0.6 : rgb?.edge
+    if (typeof edge === "number") {
+      // White left of `edge`, black right of it: a vertical edge to track.
+      const v = (i % width) / width < edge ? 1 : 0
+      data.set([v, v, v, 1], i * 4)
+    } else {
+      data.set(
+        [dec(rgb[0] / 255), dec(rgb[1] / 255), dec(rgb[2] / 255), 1],
+        i * 4
+      )
+    }
   }
   const input = new THREE.DataTexture(
     data,
@@ -49,7 +56,17 @@ window.run = async ({ type, params, rgb, width = 64, height = 36 }) => {
   }
   const cx = Math.floor(width / 2)
   const cy = Math.floor(height / 2)
+  const row = []
+  for (let x = 0; x < width; x++) row.push(at(x, cy))
+  // Where the white→black edge sits on the centre row (first dark pixel).
+  const edgeAt = row.findIndex((px) => px[1] < 128) / width
+  let hash = 2166136261
+  for (const v of px)
+    hash = Math.imul(hash ^ Math.round(v * 1e4), 16777619) >>> 0
   return {
+    edgeAt,
+    hash,
+    row,
     center: at(cx, cy),
     corner: at(0, 0),
     edgeLeft: at(0, cy),

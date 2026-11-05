@@ -295,7 +295,9 @@ export function EditorExportDialog({
   const willStreamToDisk = needsStreamToDisk && supportsSaveFilePicker()
   const audioModulationPending =
     audioLinkCount > 0 && audioSourceRef !== null && audioStatus !== "ready"
-  const [videoFps, setVideoFps] = useState(30)
+  const [videoFps, setVideoFps] = useState(
+    () => useTimelineStore.getState().frameRate
+  )
   const [videoFormat, setVideoFormat] = useState<VideoExportFormat>("webm")
   const [videoDurationDirty, setVideoDurationDirty] = useState(false)
   const [videoProgress, setVideoProgress] = useState<{

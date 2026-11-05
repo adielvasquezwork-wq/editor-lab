@@ -7,7 +7,11 @@ import {
   normalizeAudioDucking,
 } from "@/lib/editor/audio-clips"
 import { migrateSceneFilmToLayers } from "@/editorlab/effects/migrate-scene-film"
-import { normalizeTimeStep } from "@/editorlab/timing/time-step"
+import { normalizeFrameRate } from "@/editorlab/timing/frame-rate"
+import {
+  normalizeFreeze,
+  normalizeTimeStep,
+} from "@/editorlab/timing/time-step"
 import { normalizeLayerClip } from "@/lib/editor/clip"
 import { normalizeSceneFilmFields } from "@/lib/editor/scene-film"
 import { normalizeSubtitleCues } from "@/lib/editor/subtitles"
@@ -230,6 +234,7 @@ export function buildLabProjectFile(): LabProjectFile {
     selectedLayerId: layerState.selectedLayerId,
     timeline: structuredClone({
       duration: timelineState.duration,
+      frameRate: timelineState.frameRate,
       loop: timelineState.loop,
       tracks: timelineState.tracks,
     }),
@@ -492,6 +497,7 @@ const labProjectFileSchema = z.looseObject({
   selectedLayerId: z.string().nullable().optional(),
   timeline: z.looseObject({
     duration: z.number(),
+    frameRate: z.number().optional(),
     loop: z.boolean(),
     tracks: z.array(timelineTrackSchema),
   }),
@@ -673,6 +679,9 @@ export function applyLabProjectFile(
   })
 
   useTimelineStore.getState().pruneTracks(nextLayers)
+  useTimelineStore
+    .getState()
+    .setFrameRate(normalizeFrameRate(projectFile.timeline.frameRate))
 
   const audioSnapshot = normalizeProjectAudio(projectFile.audio)
   useAudioStore.getState().replaceState(audioSnapshot)
@@ -884,12 +893,20 @@ export function migrateLayerParams(
 }
 
 /**
- * Validates the optional editing fields (`clip`, `subtitles`, `timeStep`) from untrusted
+ * Validates the optional editing fields (`clip`, `subtitles`, `timeStep`,
+ * `freeze`) from untrusted
  * project files. Absent fields stay absent so legacy projects round-trip
  * byte-for-byte; malformed ones are dropped rather than rejecting the file.
  */
 export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
-  if (!("clip" in layer || "subtitles" in layer || "timeStep" in layer)) {
+  if (
+    !(
+      "clip" in layer ||
+      "subtitles" in layer ||
+      "timeStep" in layer ||
+      "freeze" in layer
+    )
+  ) {
     return layer
   }
 
@@ -912,6 +929,12 @@ export function normalizeLayerTiming(layer: EditorLayer): EditorLayer {
     const step = normalizeTimeStep(layer.timeStep)
     if (step) next.timeStep = step
     else delete next.timeStep
+  }
+
+  if ("freeze" in layer) {
+    const freeze = normalizeFreeze(layer.freeze)
+    if (freeze) next.freeze = freeze
+    else delete next.freeze
   }
 
   return next
